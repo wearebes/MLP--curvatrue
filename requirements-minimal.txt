@@ -1,0 +1,14 @@
+# Minimal core dependencies only
+# Install with: pip install -r requirements-minimal.txt
+torch
+torchvision
+tensorflow
+keras
+h5py
+numpy
+scipy
+pandas
+scikit-learn
+matplotlib
+jupyter
+jupyter-notebook
