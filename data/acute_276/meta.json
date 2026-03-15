@@ -1,6 +1,7 @@
 {
     "exp_id": "acute_276",
-    "gamma_type": "acute",
+    "blueprint_id": "acute_276",
+    "experiment_type": "acute",
     "rho_model": 276,
     "L": 0.232258,
     "N": 129,

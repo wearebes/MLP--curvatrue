@@ -1,6 +1,7 @@
 {
     "exp_id": "smooth_256",
-    "gamma_type": "smooth",
+    "blueprint_id": "smooth_256",
+    "experiment_type": "smooth",
     "rho_model": 256,
     "L": 0.207843,
     "N": 107,
