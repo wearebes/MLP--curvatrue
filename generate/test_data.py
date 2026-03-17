@@ -155,17 +155,73 @@ def extract_3x3_stencils(phi: np.ndarray, indices: np.ndarray) -> np.ndarray:
 
 
 def find_projection_theta(xy: np.ndarray, a: float, b: float, p: float) -> np.ndarray:
-    def dist_sq(theta, x, y):
-        r = b + a * np.cos(p * theta)
-        cx, cy = r * np.cos(theta), r * np.sin(theta)
-        return (x - cx) ** 2 + (y - cy) ** 2
+    # Newton solve on d/dtheta (1/2 * ||c(theta)-q||^2) = 0,
+    # where c(theta) is the polar curve point and q=(x,y).
+    tol = 1e-12
+    max_iter = 80
+    two_pi = 2.0 * np.pi
+
+    def _curve_terms(theta: float):
+        ct = np.cos(theta)
+        st = np.sin(theta)
+        cpt = np.cos(p * theta)
+        spt = np.sin(p * theta)
+
+        r = b + a * cpt
+        rp = -a * p * spt
+        rpp = -a * p**2 * cpt
+
+        cx = r * ct
+        cy = r * st
+        cpx = rp * ct - r * st
+        cpy = rp * st + r * ct
+        cppx = rpp * ct - 2.0 * rp * st - r * ct
+        cppy = rpp * st + 2.0 * rp * ct - r * st
+        return cx, cy, cpx, cpy, cppx, cppy
 
     theta_proj = []
     for x, y in xy:
-        theta0 = np.arctan2(y, x)
-        result = minimize(dist_sq, theta0, args=(x, y))
-        theta_proj.append(result.x[0] % (2 * np.pi))
-    return np.array(theta_proj)
+        theta = float(np.arctan2(y, x) % two_pi)
+        converged = False
+
+        for _ in range(max_iter):
+            cx, cy, cpx, cpy, cppx, cppy = _curve_terms(theta)
+            dx = cx - x
+            dy = cy - y
+
+            # F(theta)=0 is stationarity condition of distance^2.
+            f = dx * cpx + dy * cpy
+            fp = cpx * cpx + cpy * cpy + dx * cppx + dy * cppy
+
+            if abs(f) <= tol:
+                converged = True
+                break
+
+            if abs(fp) < 1e-18:
+                break
+
+            step = f / fp
+            theta_new = (theta - step) % two_pi
+
+            if abs(step) <= tol:
+                theta = theta_new
+                converged = True
+                break
+            theta = theta_new
+
+        if not converged:
+            def dist_sq(theta_scalar, px, py):
+                t = float(theta_scalar)
+                r = b + a * np.cos(p * t)
+                cx_f, cy_f = r * np.cos(t), r * np.sin(t)
+                return (px - cx_f) ** 2 + (py - cy_f) ** 2
+
+            result = minimize(dist_sq, np.array([theta], dtype=np.float64), args=(x, y), tol=tol)
+            theta = float(result.x[0] % two_pi)
+
+        theta_proj.append(theta)
+
+    return np.array(theta_proj, dtype=np.float64)
 
 
 def hkappa_analytic(theta_proj: np.ndarray, h: float, a: float, b: float, p: float) -> np.ndarray:

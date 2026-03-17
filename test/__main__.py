@@ -24,14 +24,21 @@ def main() -> None:
         choices=["numerical", "neural"],
         help="One or both methods to evaluate.",
     )
+    parser.add_argument(
+        "--data-split",
+        choices=["train", "test"],
+        default=None,
+        help="Optionally evaluate only one split. Omit to run both train and test.",
+    )
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parent.parent
     methods = list(dict.fromkeys(args.methods))
-
-    train_rows = evaluate_train_data(project_root, methods)
-    test_rows = evaluate_test_data(project_root, methods)
-    all_rows = train_rows + test_rows
+    all_rows = []
+    if args.data_split in (None, "train"):
+        all_rows.extend(evaluate_train_data(project_root, methods))
+    if args.data_split in (None, "test"):
+        all_rows.extend(evaluate_test_data(project_root, methods))
 
     print("Unified hk evaluation summary:")
     print(format_results_table(all_rows))

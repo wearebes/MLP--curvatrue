@@ -1,0 +1,63 @@
+[test] Numerical | curvature=div_normal | nodes=current_interface_nodes
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        376 1.861307e-03 9.092953e-03 6.719300e-06
+smooth/smooth_256        256            10        376 2.820808e-03 1.703539e-02 1.698311e-05
+smooth/smooth_256        256            20        376 3.480546e-03 1.977549e-02 2.567569e-05
+smooth/smooth_266        266             5        390 1.795019e-03 8.379874e-03 6.563568e-06
+smooth/smooth_266        266            10        390 2.739434e-03 1.577278e-02 1.704739e-05
+smooth/smooth_266        266            20        390 3.340011e-03 2.124047e-02 2.512812e-05
+smooth/smooth_276        276             5        402 1.749961e-03 9.717484e-03 6.287454e-06
+smooth/smooth_276        276            10        402 2.790551e-03 1.779386e-02 1.736484e-05
+smooth/smooth_276        276            20        402 3.493525e-03 2.219547e-02 2.727308e-05
+  acute/acute_276        276             5        476 5.910241e-03 5.655094e-02 9.790731e-05
+  acute/acute_276        276            10        476 9.746931e-03 6.029091e-02 2.484037e-04
+  acute/acute_276        276            20        476 1.241220e-02 8.437708e-02 4.187722e-04
+
+[test] Numerical | curvature=div_normal | nodes=fixed_phi0_nodes
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        376 1.861307e-03 9.092953e-03 6.719300e-06
+smooth/smooth_256        256            10        376 2.820808e-03 1.703539e-02 1.698311e-05
+smooth/smooth_256        256            20        376 3.480546e-03 1.977549e-02 2.567569e-05
+smooth/smooth_266        266             5        390 1.795019e-03 8.379874e-03 6.563568e-06
+smooth/smooth_266        266            10        390 2.739434e-03 1.577278e-02 1.704739e-05
+smooth/smooth_266        266            20        390 3.340011e-03 2.124047e-02 2.512812e-05
+smooth/smooth_276        276             5        402 1.749961e-03 9.717484e-03 6.287454e-06
+smooth/smooth_276        276            10        402 2.790551e-03 1.779386e-02 1.736484e-05
+smooth/smooth_276        276            20        402 3.493525e-03 2.219547e-02 2.727308e-05
+  acute/acute_276        276             5        476 5.910241e-03 5.655094e-02 9.790731e-05
+  acute/acute_276        276            10        476 9.746931e-03 6.029091e-02 2.484037e-04
+  acute/acute_276        276            20        476 1.241220e-02 8.437708e-02 4.187722e-04
+
+[test] Numerical | curvature=expanded_formula | nodes=current_interface_nodes
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        376 5.799979e-03 3.069428e-02 7.322316e-05
+smooth/smooth_256        256            10        376 7.360965e-03 4.881621e-02 1.226041e-04
+smooth/smooth_256        256            20        376 7.226705e-03 4.435820e-02 1.340760e-04
+smooth/smooth_266        266             5        390 6.286536e-03 3.083286e-02 8.797162e-05
+smooth/smooth_266        266            10        390 7.941644e-03 4.766359e-02 1.424040e-04
+smooth/smooth_266        266            20        390 7.407525e-03 4.693429e-02 1.431296e-04
+smooth/smooth_276        276             5        402 6.179383e-03 2.964490e-02 8.664439e-05
+smooth/smooth_276        276            10        402 7.942150e-03 4.655988e-02 1.526755e-04
+smooth/smooth_276        276            20        402 7.711128e-03 5.246637e-02 1.701527e-04
+  acute/acute_276        276             5        476 1.821178e-02 8.592510e-02 7.347561e-04
+  acute/acute_276        276            10        476 2.503097e-02 1.409307e-01 1.519931e-03
+  acute/acute_276        276            20        476 2.656240e-02 1.791269e-01 2.080826e-03
+
+[test] Numerical | curvature=expanded_formula | nodes=fixed_phi0_nodes
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        376 5.799979e-03 3.069428e-02 7.322316e-05
+smooth/smooth_256        256            10        376 7.360965e-03 4.881621e-02 1.226041e-04
+smooth/smooth_256        256            20        376 7.226705e-03 4.435820e-02 1.340760e-04
+smooth/smooth_266        266             5        390 6.286536e-03 3.083286e-02 8.797162e-05
+smooth/smooth_266        266            10        390 7.941644e-03 4.766359e-02 1.424040e-04
+smooth/smooth_266        266            20        390 7.407525e-03 4.693429e-02 1.431296e-04
+smooth/smooth_276        276             5        402 6.179383e-03 2.964490e-02 8.664439e-05
+smooth/smooth_276        276            10        402 7.942150e-03 4.655988e-02 1.526755e-04
+smooth/smooth_276        276            20        402 7.711128e-03 5.246637e-02 1.701527e-04
+  acute/acute_276        276             5        476 1.821178e-02 8.592510e-02 7.347561e-04
+  acute/acute_276        276            10        476 2.503097e-02 1.409307e-01 1.519931e-03
+  acute/acute_276        276            20        476 2.656240e-02 1.791269e-01 2.080826e-03

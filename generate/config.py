@@ -14,7 +14,7 @@ VARIATIONS = 5
 
 # Reinitialization pseudo-time CFL coefficient
 # Δτ = CFL * h  (0.1 = conservative; original paper used 0.5)
-CFL = 0.1
+CFL = 0.2
 
 # WENO5 smoothness-indicator epsilon
 EPS_WENO = 1e-6

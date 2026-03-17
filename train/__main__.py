@@ -46,10 +46,24 @@ def main() -> None:
     config = load_training_config(args.config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model_dir = project_root / "model"
+    # Determine model directory and data directory based on command
+    if args.command == "dataset":
+        dataset_id = args.dataset_id
+        model_dir = project_root / "model" / f"model_{dataset_id}"
+        data_dir = project_root / "data" / dataset_id
+    else:  # "rho" command
+        if args.dataset:
+            dataset_id = args.dataset
+            model_dir = project_root / "model" / f"model_{dataset_id}"
+            data_dir = project_root / "data" / dataset_id
+        else:
+            model_dir = project_root / "model"
+            data_dir = project_root / "data"
+
     results_dir = project_root / "train" / "results"
     training_log_path = create_training_log_output_path(results_dir)
     result_rows: list[dict[str, object]] = []
+    stop_info_list: list[str] = []
 
     def emit(message: str) -> None:
         print(message)
@@ -57,7 +71,7 @@ def main() -> None:
 
     for rho in args.rho_values:
         set_all_seeds(config.training.seed)
-        data_path = project_root / "data" / f"train_rho{rho}.h5"
+        data_path = data_dir / f"train_rho{rho}.h5"
         checkpoint_path = model_dir / f"model_rho{rho}.pth"
 
         emit("")
@@ -97,9 +111,22 @@ def main() -> None:
             log_message=lambda message: append_log_line(training_log_path, message),
         )
         result_rows.append(result)
+        
+        # Collect stop info for summary file
+        if result.get("stop_info"):
+            stop_info_list.append(f"[rho={rho}] {result['stop_info']}")
 
     output_path = create_result_output_path(results_dir)
     table = save_results_to_txt(result_rows, output_path)
+    
+    # Save stop_summary.txt in model_dir
+    if stop_info_list:
+        stop_summary_path = model_dir / "stop_summary.txt"
+        model_dir.mkdir(parents=True, exist_ok=True)
+        with open(stop_summary_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(stop_info_list) + "\n")
+        emit(f"Stop summary saved to {stop_summary_path}")
+    
     emit("")
     emit("Final summary:")
     for line in table.splitlines():
@@ -113,14 +140,44 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train rho-specific curvature MLP models.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    # "dataset" command - train all rho values for a specific dataset
+    dataset_parser = subparsers.add_parser("dataset", help="Train all rho-specific models for a dataset.")
+    dataset_parser.add_argument("dataset_id", type=str, help="Dataset ID (e.g., data_001, acute_276)")
+    dataset_parser.add_argument(
+        "--rho",
+        nargs="+",
+        type=int,
+        default=[256, 266, 276],
+        help="rho values to train (default: 256 266 276)",
+    )
+    dataset_parser.add_argument(
+        "--config",
+        default=str(Path(__file__).resolve().with_name("config.txt")),
+        help="Path to the training config file.",
+    )
+
+    # "rho" command - train specific rho values (with optional dataset)
     rho_parser = subparsers.add_parser("rho", help="Train one or more rho-specific models.")
     rho_parser.add_argument("rho_values", nargs="+", type=int, help="rho values to train, e.g. 256 266 276")
+    rho_parser.add_argument(
+        "--dataset",
+        type=str,
+        default=None,
+        help="Dataset ID (optional). If provided, data will be loaded from data/{dataset_id}/",
+    )
     rho_parser.add_argument(
         "--config",
         default=str(Path(__file__).resolve().with_name("config.txt")),
         help="Path to the training config file.",
     )
-    return parser.parse_args()
+    
+    args = parser.parse_args()
+    
+    # For dataset command, set rho_values from the --rho argument
+    if args.command == "dataset":
+        args.rho_values = args.rho
+    
+    return args
 
 
 if __name__ == "__main__":

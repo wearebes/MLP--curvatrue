@@ -6,6 +6,7 @@ import random
 import time
 from collections.abc import Callable
 
+import criterion
 import numpy as np
 import torch
 import torch.nn as nn
@@ -13,6 +14,7 @@ import torch.nn as nn
 from .config import OptimizerConfig, TrainingRuntimeConfig
 
 
+#set the random seed for reproducibility across random, numpy, and torch ( CPU and CUDA).
 def set_all_seeds(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -22,19 +24,23 @@ def set_all_seeds(seed: int) -> None:
 
 
 def train_one_epoch(
-    model: nn.Module,
+    model: nn.Module, #through the defined model in model_structure
     loader,
-    optimizer: torch.optim.Optimizer,
-    criterion: nn.Module,
+    optimizer: torch.optim.Optimizer,  #adam
+    criterion: nn.Module,     # the forward
     device: torch.device,
-) -> dict[str, float]:
-    model.train()
+) -> dict[str, float]:    # find the model for different rho
+    model.train()   # start train
 
     total_loss = 0.0
     total_mae = 0.0
     total_count = 0
     max_ae = 0.0
 
+'''
+to device cuda, and non_blocking=True means that the data transfer can be 
+asynchronous with respect to the host, which can improve performance when using pinned memory.
+'''
     for x_batch, y_batch in loader:
         x_batch = x_batch.to(device, non_blocking=True)
         y_batch = y_batch.to(device, non_blocking=True)
@@ -123,6 +129,8 @@ def fit_regression_model(
     best_state = copy.deepcopy(model.state_dict())
     epochs_without_improvement = 0
     started_at = time.time()
+    stop_epoch = None
+    stop_info = None
 
     def emit(message: str) -> None:
         print(message)
@@ -130,7 +138,7 @@ def fit_regression_model(
             log_message(message)
 
     for epoch in range(1, training_config.max_epochs + 1):
-        train_metrics = train_one_epoch(model, train_loader, optimizer, criterion, device)
+        train_metrics = train_one_epoch(model, train_loader, optimizer,criterion, device)
         val_metrics = evaluate(model, val_loader, criterion, device)
         test_metrics = evaluate(model, test_loader, criterion, device)
 
@@ -163,6 +171,17 @@ def fit_regression_model(
                 f"[rho={rho}] Early stopping triggered at epoch {epoch} "
                 f"(patience={training_config.patience})."
             )
+            stop_epoch = epoch
+            stop_info = (
+                f"Early stopping at epoch {stop_epoch}: "
+                f"LR={current_lr:.3e} | "
+                f"Train: MSE={train_metrics['mse']:.6e}, RMSE={train_metrics['rmse']:.6e}, "
+                f"MAE={train_metrics['mae']:.6e}, MaxAE={train_metrics['max_ae']:.6e} | "
+                f"Val: MSE={val_metrics['mse']:.6e}, RMSE={val_metrics['rmse']:.6e}, "
+                f"MAE={val_metrics['mae']:.6e}, MaxAE={val_metrics['max_ae']:.6e} | "
+                f"Test: MSE={test_metrics['mse']:.6e}, RMSE={test_metrics['rmse']:.6e}, "
+                f"MAE={test_metrics['mae']:.6e}, MaxAE={test_metrics['max_ae']:.6e}"
+            )
             break
 
     elapsed_seconds = time.time() - started_at
@@ -186,4 +205,6 @@ def fit_regression_model(
         "test_mae": test_metrics["mae"],
         "test_max_ae": test_metrics["max_ae"],
         "elapsed_seconds": elapsed_seconds,
+        "stop_epoch": stop_epoch,
+        "stop_info": stop_info,
     }
