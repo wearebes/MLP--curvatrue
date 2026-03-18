@@ -37,10 +37,8 @@ def train_one_epoch(
     total_count = 0
     max_ae = 0.0
 
-'''
-to device cuda, and non_blocking=True means that the data transfer can be 
-asynchronous with respect to the host, which can improve performance when using pinned memory.
-'''
+    # to device cuda, and non_blocking=True means that the data transfer can be 
+    # asynchronous with respect to the host, which can improve performance when using pinned memory.
     for x_batch, y_batch in loader:
         x_batch = x_batch.to(device, non_blocking=True)
         y_batch = y_batch.to(device, non_blocking=True)
@@ -133,7 +131,7 @@ def fit_regression_model(
     stop_info = None
 
     def emit(message: str) -> None:
-        print(message)
+        print(message, flush=True)
         if log_message is not None:
             log_message(message)
 
