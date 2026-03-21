@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import sys
+
+# Ensure unbuffered output for real-time logging
+os.environ['PYTHONUNBUFFERED'] = '1'
 
 import torch
 

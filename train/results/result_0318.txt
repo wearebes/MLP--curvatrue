@@ -1,0 +1,2 @@
+ rho  best_epoch best_val_mae test_mse test_mae test_max_ae elapsed_seconds
+ 256          38     0.015714 0.000577 0.015680    0.626397        10304.46
