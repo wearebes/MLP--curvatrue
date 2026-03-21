@@ -98,3 +98,7 @@ python -m test numerical neural
 python view_case.py acute_276
 
 ```
+CUDA Driver Version: 580.126.09
+Current PyTorch CUDA Version: 12.6
+WARNING: PyTorch CUDA is not available! Reinstalling PyTorch...
+Installing CUDA 12.1 compatible PyTorch...

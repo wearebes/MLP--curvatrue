@@ -6,7 +6,6 @@ import random
 import time
 from collections.abc import Callable
 
-import criterion
 import numpy as np
 import torch
 import torch.nn as nn
@@ -37,8 +36,12 @@ def train_one_epoch(
     total_count = 0
     max_ae = 0.0
 
+<<<<<<< Updated upstream
     # to device cuda, and non_blocking=True means that the data transfer can be 
     # asynchronous with respect to the host, which can improve performance when using pinned memory.
+=======
+
+>>>>>>> Stashed changes
     for x_batch, y_batch in loader:
         x_batch = x_batch.to(device, non_blocking=True)
         y_batch = y_batch.to(device, non_blocking=True)
@@ -111,7 +114,7 @@ def fit_regression_model(
     device: torch.device,
     save_path,
     log_message: Callable[[str], None] | None = None,
-) -> dict[str, float | int]:
+) -> dict[str, object]:
     model = model.to(device)
     criterion = nn.MSELoss()   #the loss is mse
     optimizer = torch.optim.Adam(
