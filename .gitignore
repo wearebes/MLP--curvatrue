@@ -17,6 +17,15 @@ train/results/
 test/results/
 output_plots/
 
+# SLURM output files
+slurm-*.out
+slurm-*.err
+
+# Job output files
+*.out
+*.err
+*.log
+
 # Cache
 *.egg-info/
 .pytest_cache/
