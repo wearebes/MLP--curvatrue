@@ -1,2 +1,26 @@
 __pycache__/
 *.py[cod]
+
+# Data
+data/
+*.h5
+*.hdf5
+
+# Models
+model/
+*.pth
+*.pt
+
+# Logs
+logs/
+train/results/
+test/results/
+output_plots/
+
+# Cache
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# PDF files
+*.pdf

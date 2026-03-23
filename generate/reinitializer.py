@@ -21,31 +21,36 @@ class ReinitQualityEvaluator:
     def get_sampling_coordinates(phi: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
         [PUBLIC API]
-        Finds the (i, j) indices of grid nodes whose OUTGOING vertical
-        or horizontal edges are crossed by the interface.
+        Finds the unique interior grid nodes adjacent to interface-crossing
+        horizontal or vertical edges.
 
-        Note: If a node has both its outgoing x-edge and y-edge crossed,
-        its coordinates will appear twice. This duplicates the sampling logic
-        from the reference paper exactly.
+        For every crossed edge, both endpoints are added to the candidate
+        sample-node set. The final coordinates are deduplicated so each
+        interface-adjacent node contributes a single 3x3 stencil.
         """
-        # Sign changes across OUTGOING edges
+        # Sign changes across vertical and horizontal edges.
         sign_change_x = phi[:-1, :] * phi[1:, :] <= 0.0
         sign_change_y = phi[:, :-1] * phi[:, 1:] <= 0.0
 
-        # Zero out the outermost boundary to prevent 3x3 stencil out-of-bounds later
-        sign_change_x[0, :] = sign_change_x[-1, :] = False
-        sign_change_x[:, 0] = sign_change_x[:, -1] = False
+        mask = np.zeros_like(phi, dtype=bool)
 
-        sign_change_y[0, :] = sign_change_y[-1, :] = False
-        sign_change_y[:, 0] = sign_change_y[:, -1] = False
+        # Vertical edges connect (i, j) <-> (i + 1, j).
+        ix, jx = np.where(sign_change_x)
+        mask[ix, jx] = True
+        mask[ix + 1, jx] = True
 
-        # Extract coordinates independently
-        Ix, Jx = np.where(sign_change_x)
-        Iy, Jy = np.where(sign_change_y)
+        # Horizontal edges connect (i, j) <-> (i, j + 1).
+        iy, jy = np.where(sign_change_y)
+        mask[iy, jy] = True
+        mask[iy, jy + 1] = True
 
-        # Concatenate to allow identical stencils (matches the paper's 3.14M count)
-        I = np.concatenate([Ix, Iy])
-        J = np.concatenate([Jx, Jy])
+        # Keep only interior nodes so every sample has a valid 3x3 stencil.
+        mask[0, :] = False
+        mask[-1, :] = False
+        mask[:, 0] = False
+        mask[:, -1] = False
+
+        I, J = np.where(mask)
 
         return I, J
 
