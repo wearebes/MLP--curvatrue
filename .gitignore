@@ -1,35 +1,22 @@
+# ── Python cache ──────────────────────────────────────
 __pycache__/
 *.py[cod]
 
-# Data
-data/
-*.h5
-*.hdf5
-
-# Models
-model/
-*.pth
-*.pt
-
-# Logs
-logs/
-train/results/
-test/results/
-output_plots/
-
-# SLURM output files
-slurm-*.out
-slurm-*.err
-
-# Job output files
-*.out
-*.err
-*.log
-
-# Cache
+# ── Cache / IDE ────────────────────────────────────────
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
+.idea/
+.vscode/
 
-# PDF files
-*.pdf
+# ── DVC-managed (do NOT add these to git) ─────────────
+# DVC will auto-add its own ignores for data/ and model/,
+# but we keep these as fallback safety nets.
+/data
+/model
+
+# ── SLURM temporary output (not tracked anywhere) ─────
+slurm-*.out
+slurm-*.err
+*.out
+*.err
