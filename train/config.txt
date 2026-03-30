@@ -7,10 +7,12 @@ weight_decay=0.0
 # Training parameters
 max_epochs=500
 patience=30
-batch_size=128
+batch_size=32
 seed=42
 
 # Model parameters
 hidden_dim_256=128
 hidden_dim_266=140
 hidden_dim_276=140
+
+

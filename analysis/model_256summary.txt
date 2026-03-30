@@ -1,0 +1,51 @@
+Batch256 model evaluation summary
+Date: 2026-03-28
+Source: paper_formula_cfl095_eps25_dynsign
+Methods in each per-model evaluation: Neural + Numerical + Origin
+Summary below ranks only the four batch256 neural models against the same test source.
+
+Per-model unified evaluation files
+- model/data02_001_batch256/evals/unified_evaluation.txt
+- model/data02_002_batch256/evals/unified_evaluation.txt
+- model/data02_004_batch256/evals/unified_evaluation.txt
+- model/data02_005_batch256/evals/unified_evaluation.txt
+
+Average metrics over 12 test rows (Neural only)
+model                  avg_MAE_hk         avg_MSE_hk         worst_MSE_hk
+data02_004_batch256    1.025264e-03       5.049071e-06       1.827461e-05
+data02_005_batch256    1.018201e-03       5.152474e-06       1.924682e-05
+data02_002_batch256    1.018385e-03       5.886887e-06       2.119242e-05
+data02_001_batch256    1.053566e-03       6.409688e-06       2.356410e-05
+
+Ranking by average MSE (lower is better)
+1. data02_004_batch256    5.049071e-06
+2. data02_005_batch256    5.152474e-06
+3. data02_002_batch256    5.886887e-06
+4. data02_001_batch256    6.409688e-06
+
+Ranking by average MAE (lower is better)
+1. data02_005_batch256    1.018201e-03
+2. data02_002_batch256    1.018385e-03
+3. data02_004_batch256    1.025264e-03
+4. data02_001_batch256    1.053566e-03
+
+Best model by case-step using MSE
+group_id              step   best_model             best_MSE_hk
+smooth/smooth_256     5      data02_001_batch256   1.257432e-06
+smooth/smooth_256     10     data02_002_batch256   6.548179e-07
+smooth/smooth_256     20     data02_002_batch256   6.203981e-07
+smooth/smooth_266     5      data02_001_batch256   1.704373e-06
+smooth/smooth_266     10     data02_004_batch256   7.881512e-07
+smooth/smooth_266     20     data02_004_batch256   7.450362e-07
+smooth/smooth_276     5      data02_002_batch256   1.381327e-06
+smooth/smooth_276     10     data02_004_batch256   6.481095e-07
+smooth/smooth_276     20     data02_004_batch256   6.059611e-07
+acute/acute_276       5      data02_004_batch256   1.827461e-05
+acute/acute_276       10     data02_004_batch256   1.458847e-05
+acute/acute_276       20     data02_004_batch256   1.637419e-05
+
+Quick conclusion
+- Overall best by average MSE: data02_004_batch256
+- Overall best by average MAE: data02_005_batch256
+- Most stable worst-case MSE: data02_004_batch256
+- If one model should be selected as the default batch256 checkpoint for this source, pick data02_004_batch256

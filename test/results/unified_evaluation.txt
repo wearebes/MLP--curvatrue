@@ -1,0 +1,31 @@
+[test] Numerical | model=baseline_numerical | curvature=expanded_formula | nodes=current_interface_nodes | source=paper_formula_cfl05_dynsign
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        528 4.847887e-03 2.813542e-02 5.433540e-05
+smooth/smooth_256        256            10        528 4.302386e-03 2.551296e-02 4.072087e-05
+smooth/smooth_256        256            20        528 3.711287e-03 1.969314e-02 2.785738e-05
+smooth/smooth_266        266             5        552 4.854422e-03 2.834192e-02 5.516158e-05
+smooth/smooth_266        266            10        552 4.337259e-03 2.482717e-02 4.053410e-05
+smooth/smooth_266        266            20        552 3.795890e-03 1.981419e-02 2.850872e-05
+smooth/smooth_276        276             5        564 5.012134e-03 3.076615e-02 6.162293e-05
+smooth/smooth_276        276            10        564 4.458224e-03 2.459182e-02 4.630371e-05
+smooth/smooth_276        276            20        564 3.867371e-03 2.048461e-02 3.153577e-05
+  acute/acute_276        276             5        672 1.392982e-02 8.175162e-02 4.739952e-04
+  acute/acute_276        276            10        672 1.217000e-02 8.920091e-02 3.599968e-04
+  acute/acute_276        276            20        672 1.020170e-02 9.048766e-02 2.590851e-04
+
+[test] Origin | model=origin | curvature=model_prediction | nodes=current_interface_nodes | source=paper_formula_cfl05_dynsign
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        528 3.872391e-03 2.866706e-02 3.928266e-05
+smooth/smooth_256        256            10        528 3.395981e-03 2.488572e-02 3.036073e-05
+smooth/smooth_256        256            20        528 2.863251e-03 1.951680e-02 1.959254e-05
+smooth/smooth_266        266             5        552 3.978071e-03 2.935734e-02 4.181536e-05
+smooth/smooth_266        266            10        552 3.622725e-03 2.407022e-02 3.189129e-05
+smooth/smooth_266        266            20        552 3.110797e-03 1.939457e-02 2.160139e-05
+smooth/smooth_276        276             5        564 4.245371e-03 3.123893e-02 4.868980e-05
+smooth/smooth_276        276            10        564 3.894509e-03 2.444988e-02 3.867784e-05
+smooth/smooth_276        276            20        564 3.346356e-03 2.058025e-02 2.553633e-05
+  acute/acute_276        276             5        672 1.152756e-02 6.616088e-02 3.314564e-04
+  acute/acute_276        276            10        672 1.073572e-02 6.004286e-02 2.738326e-04
+  acute/acute_276        276            20        672 8.958223e-03 4.973186e-02 1.891777e-04

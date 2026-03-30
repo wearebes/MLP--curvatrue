@@ -1,0 +1,57 @@
+﻿Experiment: H06 model_data02_002 on best near-paper reinitializer config
+
+Dataset: paper_formula_cfl095_eps25_dynsign
+Config:
+- sign_mode = dynamic_phi
+- cfl = 0.95
+- eps_sign_factor = 2.5
+- time_order = 3
+- space_order = 5
+
+[test] Neural | model=model_data02_002 | curvature=model_prediction | nodes=current_interface_nodes | source=paper_formula_cfl095_eps25_dynsign
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        528 9.795733e-04 6.684407e-03 1.846512e-06
+smooth/smooth_256        256            10        528 7.321330e-04 4.945126e-03 9.855157e-07
+smooth/smooth_256        256            20        528 7.196781e-04 4.978296e-03 9.321896e-07
+smooth/smooth_266        266             5        552 9.635439e-04 6.542590e-03 1.757645e-06
+smooth/smooth_266        266            10        552 7.789318e-04 4.921445e-03 1.109245e-06
+smooth/smooth_266        266            20        552 7.614459e-04 5.113000e-03 1.054960e-06
+smooth/smooth_276        276             5        564 1.166272e-03 7.953401e-03 2.651637e-06
+smooth/smooth_276        276            10        564 7.833302e-04 7.006358e-03 1.268792e-06
+smooth/smooth_276        276            20        564 7.607955e-04 6.808187e-03 1.207228e-06
+  acute/acute_276        276             5        672 2.259191e-03 6.017666e-02 2.148115e-05
+  acute/acute_276        276            10        672 1.849677e-03 5.389228e-02 2.065843e-05
+  acute/acute_276        276            20        672 1.843305e-03 5.252462e-02 2.268656e-05
+
+[test] Numerical | model=baseline_numerical | curvature=expanded_formula | nodes=current_interface_nodes | source=paper_formula_cfl095_eps25_dynsign
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        528 1.206010e-03 1.157036e-02 3.496908e-06
+smooth/smooth_256        256            10        528 1.155534e-03 1.431340e-02 4.138002e-06
+smooth/smooth_256        256            20        528 1.140142e-03 1.494122e-02 4.270771e-06
+smooth/smooth_266        266             5        552 1.120680e-03 8.095418e-03 2.932278e-06
+smooth/smooth_266        266            10        552 1.089437e-03 1.145989e-02 3.606692e-06
+smooth/smooth_266        266            20        552 1.069939e-03 1.251694e-02 3.757629e-06
+smooth/smooth_276        276             5        564 1.083800e-03 9.855187e-03 2.980978e-06
+smooth/smooth_276        276            10        564 1.053884e-03 1.211624e-02 3.640881e-06
+smooth/smooth_276        276            20        564 1.039260e-03 1.250342e-02 3.762929e-06
+  acute/acute_276        276             5        672 2.552403e-03 7.954770e-02 5.093047e-05
+  acute/acute_276        276            10        672 2.440846e-03 9.046453e-02 5.823998e-05
+  acute/acute_276        276            20        672 2.406392e-03 9.206461e-02 6.084483e-05
+
+[test] Origin | model=origin | curvature=model_prediction | nodes=current_interface_nodes | source=paper_formula_cfl095_eps25_dynsign
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        528 9.781769e-04 4.943795e-03 1.647597e-06
+smooth/smooth_256        256            10        528 5.352429e-04 4.969421e-03 5.326172e-07
+smooth/smooth_256        256            20        528 5.341478e-04 5.036208e-03 5.343804e-07
+smooth/smooth_266        266             5        552 9.152999e-04 7.550251e-03 1.674384e-06
+smooth/smooth_266        266            10        552 5.963435e-04 7.536867e-03 7.870939e-07
+smooth/smooth_266        266            20        552 5.747219e-04 7.487694e-03 7.469049e-07
+smooth/smooth_276        276             5        564 1.183766e-03 7.482007e-03 2.272062e-06
+smooth/smooth_276        276            10        564 7.232268e-04 5.287975e-03 9.635264e-07
+smooth/smooth_276        276            20        564 6.666730e-04 4.797786e-03 8.731684e-07
+  acute/acute_276        276             5        672 2.245672e-03 5.502953e-02 1.751365e-05
+  acute/acute_276        276            10        672 1.731099e-03 4.784473e-02 1.649127e-05
+  acute/acute_276        276            20        672 1.718449e-03 4.627755e-02 1.849928e-05

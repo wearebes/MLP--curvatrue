@@ -1,322 +1,326 @@
+"""
+generate/test_data.py — 可切换初值模式的测试数据生成流水线。
+
+支持两类初值：
+- formula_phi0: 论文 irregular flower 口径的代数花形公式初值
+- formula_phi0_projection_band: 仅在界面窄带内用 projection 修正公式初值
+- exact_sdf:    牛顿投影构造的 exact SDF 初值
+
+公共 API
+--------
+generate_test_datasets(output_dir, *, config)
+"""
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Union
 
 import h5py
 import numpy as np
-from scipy.optimize import minimize
 
-from .config import CFL
-from .test_blueprints import TEST_BLUEPRINTS
-
-
-TEST_ITERS = [5, 10, 20]
-
-
-class LevelSetReinitializer:
-    """Exact reinitializer ported from the original test notebook."""
-
-    def __init__(self, cfl: float = 0.5, eps_weno: float = 1e-6, eps_sign_factor: float = 1.0):
-        self.cfl = cfl
-        self.eps_weno = eps_weno
-        self.eps_sign_factor = eps_sign_factor
-
-    def _smoothed_sign(self, phi0: np.ndarray, h: float) -> np.ndarray:
-        eps = self.eps_sign_factor * h
-        return phi0 / np.sqrt(phi0**2 + eps**2)
-
-    def _hj_weno5_1d(self, v1, v2, v3, v4, v5) -> np.ndarray:
-        beta0 = (13.0 / 12.0) * (v1 - 2.0 * v2 + v3) ** 2 + (1.0 / 4.0) * (v1 - 4.0 * v2 + 3.0 * v3) ** 2
-        beta1 = (13.0 / 12.0) * (v2 - 2.0 * v3 + v4) ** 2 + (1.0 / 4.0) * (v2 - v4) ** 2
-        beta2 = (13.0 / 12.0) * (v3 - 2.0 * v4 + v5) ** 2 + (1.0 / 4.0) * (3.0 * v3 - 4.0 * v4 + v5) ** 2
-
-        alpha0 = 0.1 / (beta0 + self.eps_weno) ** 2
-        alpha1 = 0.6 / (beta1 + self.eps_weno) ** 2
-        alpha2 = 0.3 / (beta2 + self.eps_weno) ** 2
-        sum_alpha = alpha0 + alpha1 + alpha2
-
-        w0, w1, w2 = alpha0 / sum_alpha, alpha1 / sum_alpha, alpha2 / sum_alpha
-
-        p0 = (1.0 / 3.0) * v1 - (7.0 / 6.0) * v2 + (11.0 / 6.0) * v3
-        p1 = -(1.0 / 6.0) * v2 + (5.0 / 6.0) * v3 + (1.0 / 3.0) * v4
-        p2 = (1.0 / 3.0) * v3 + (5.0 / 6.0) * v4 - (1.0 / 6.0) * v5
-
-        return w0 * p0 + w1 * p1 + w2 * p2
-
-    def _get_derivatives_weno5(self, phi: np.ndarray, h: float):
-        nx, ny = phi.shape
-        phi_pad = np.pad(phi, pad_width=3, mode="edge")
-
-        d_x = (phi_pad[:, 1:] - phi_pad[:, :-1]) / h
-        d_y = (phi_pad[1:, :] - phi_pad[:-1, :]) / h
-
-        dx_m = self._hj_weno5_1d(
-            d_x[3:-3, 0:ny],
-            d_x[3:-3, 1:ny + 1],
-            d_x[3:-3, 2:ny + 2],
-            d_x[3:-3, 3:ny + 3],
-            d_x[3:-3, 4:ny + 4],
-        )
-        dx_p = self._hj_weno5_1d(
-            d_x[3:-3, 5:ny + 5],
-            d_x[3:-3, 4:ny + 4],
-            d_x[3:-3, 3:ny + 3],
-            d_x[3:-3, 2:ny + 2],
-            d_x[3:-3, 1:ny + 1],
-        )
-
-        dy_m = self._hj_weno5_1d(
-            d_y[0:nx, 3:-3],
-            d_y[1:nx + 1, 3:-3],
-            d_y[2:nx + 2, 3:-3],
-            d_y[3:nx + 3, 3:-3],
-            d_y[4:nx + 4, 3:-3],
-        )
-        dy_p = self._hj_weno5_1d(
-            d_y[5:nx + 5, 3:-3],
-            d_y[4:nx + 4, 3:-3],
-            d_y[3:nx + 3, 3:-3],
-            d_y[2:nx + 2, 3:-3],
-            d_y[1:nx + 1, 3:-3],
-        )
-        return dx_m, dx_p, dy_m, dy_p
-
-    def _godunov_grad_norm(self, dx_m, dx_p, dy_m, dy_p, s0):
-        grad_plus = np.sqrt(
-            np.maximum(np.maximum(dx_m, -dx_p), 0.0) ** 2
-            + np.maximum(np.maximum(dy_m, -dy_p), 0.0) ** 2
-        )
-        grad_minus = np.sqrt(
-            np.maximum(np.maximum(-dx_m, dx_p), 0.0) ** 2
-            + np.maximum(np.maximum(-dy_m, dy_p), 0.0) ** 2
-        )
-        return np.where(s0 >= 0, grad_plus, grad_minus)
-
-    def _compute_rhs(self, phi, s0, h):
-        dx_m, dx_p, dy_m, dy_p = self._get_derivatives_weno5(phi, h)
-        grad_g = self._godunov_grad_norm(dx_m, dx_p, dy_m, dy_p, s0)
-        return -s0 * (grad_g - 1.0)
-
-    def reinitialize(self, phi0: np.ndarray, h: float, n_steps: int) -> np.ndarray:
-        if n_steps <= 0:
-            return phi0.copy()
-        phi = phi0.astype(np.float64, copy=True)
-        s0 = self._smoothed_sign(phi, h)
-        dt = self.cfl * h
-
-        for _ in range(n_steps):
-            l1 = self._compute_rhs(phi, s0, h)
-            phi_1 = phi + dt * l1
-            l2 = self._compute_rhs(phi_1, s0, h)
-            phi_2 = 0.75 * phi + 0.25 * (phi_1 + dt * l2)
-            l3 = self._compute_rhs(phi_2, s0, h)
-            phi = (1.0 / 3.0) * phi + (2.0 / 3.0) * (phi_2 + dt * l3)
-
-        return phi
+from .pde import LevelSetReinitializer
+from .numerics import (
+    ReinitQualityEvaluator,
+    build_grid,
+    build_flower_phi0,
+    compute_hkappa,
+    find_projection_theta,
+    high_precision_exact_sdf,
+    hkappa_analytic,
+    vectorized_exact_sdf,
+)
+from .train_data import extract_3x3_stencils
+from .config import (
+    GenerateConfig,
+    TEST_DATA_MODE_EXACT_SDF,
+    TEST_DATA_MODE_FORMULA,
+    TEST_DATA_MODE_FORMULA_PROJECTION_BAND,
+    load_generate_config,
+)
 
 
-def build_grid(L: float, N: int):
-    x = np.linspace(-L, L, N, dtype=np.float64)
-    X, Y = np.meshgrid(x, x, indexing="xy")
-    h = 2.0 * L / (N - 1)
-    return X, Y, h
+# ── 采样坐标 ────────────────────────────────────────────────
+
+def _get_interface_indices(phi: np.ndarray) -> np.ndarray:
+    I, J = ReinitQualityEvaluator.get_sampling_coordinates(phi)
+    if len(I) == 0:
+        return np.zeros((0, 2), dtype=np.int64)
+    return np.column_stack((I, J)).astype(np.int64)
 
 
-def build_flower_phi0(X, Y, a, b, p):
-    theta = np.arctan2(Y, X)
-    r = np.sqrt(X**2 + Y**2)
-    return r - a * np.cos(p * theta) - b
+def _indices_to_xy(indices: np.ndarray, X: np.ndarray, Y: np.ndarray) -> np.ndarray:
+    return np.column_stack((X[indices[:, 0], indices[:, 1]],
+                            Y[indices[:, 0], indices[:, 1]]))
 
 
-def interface_band_mask(phi: np.ndarray) -> np.ndarray:
-    mask = np.zeros_like(phi, dtype=bool)
-    mask[:, :-1] |= phi[:, :-1] * phi[:, 1:] <= 0.0
-    mask[:-1, :] |= phi[:-1, :] * phi[1:, :] <= 0.0
-    mask[0, :] = mask[-1, :] = False
-    mask[:, 0] = mask[:, -1] = False
-    return mask
+# ── I/O helpers ─────────────────────────────────────────────
 
-
-def get_valid_indices(mask: np.ndarray) -> np.ndarray:
-    return np.argwhere(mask)
-
-
-def indices_to_xy(indices: np.ndarray, X: np.ndarray, Y: np.ndarray) -> np.ndarray:
-    return np.column_stack((X[indices[:, 0], indices[:, 1]], Y[indices[:, 0], indices[:, 1]]))
-
-
-def extract_3x3_stencils(phi: np.ndarray, indices: np.ndarray) -> np.ndarray:
-    stencils = []
-    for row, col in indices:
-        patch = phi[row - 1:row + 2, col - 1:col + 2]
-        stencils.append(patch.flatten())
-    return np.array(stencils, dtype=np.float64)
-
-
-def find_projection_theta(xy: np.ndarray, a: float, b: float, p: float) -> np.ndarray:
-    # Newton solve on d/dtheta (1/2 * ||c(theta)-q||^2) = 0,
-    # where c(theta) is the polar curve point and q=(x,y).
-    tol = 1e-12
-    max_iter = 80
-    two_pi = 2.0 * np.pi
-
-    def _curve_terms(theta: float):
-        ct = np.cos(theta)
-        st = np.sin(theta)
-        cpt = np.cos(p * theta)
-        spt = np.sin(p * theta)
-
-        r = b + a * cpt
-        rp = -a * p * spt
-        rpp = -a * p**2 * cpt
-
-        cx = r * ct
-        cy = r * st
-        cpx = rp * ct - r * st
-        cpy = rp * st + r * ct
-        cppx = rpp * ct - 2.0 * rp * st - r * ct
-        cppy = rpp * st + 2.0 * rp * ct - r * st
-        return cx, cy, cpx, cpy, cppx, cppy
-
-    theta_proj = []
-    for x, y in xy:
-        theta = float(np.arctan2(y, x) % two_pi)
-        converged = False
-
-        for _ in range(max_iter):
-            cx, cy, cpx, cpy, cppx, cppy = _curve_terms(theta)
-            dx = cx - x
-            dy = cy - y
-
-            # F(theta)=0 is stationarity condition of distance^2.
-            f = dx * cpx + dy * cpy
-            fp = cpx * cpx + cpy * cpy + dx * cppx + dy * cppy
-
-            if abs(f) <= tol:
-                converged = True
-                break
-
-            if abs(fp) < 1e-18:
-                break
-
-            step = f / fp
-            theta_new = (theta - step) % two_pi
-
-            if abs(step) <= tol:
-                theta = theta_new
-                converged = True
-                break
-            theta = theta_new
-
-        if not converged:
-            def dist_sq(theta_scalar, px, py):
-                t = float(theta_scalar)
-                r = b + a * np.cos(p * t)
-                cx_f, cy_f = r * np.cos(t), r * np.sin(t)
-                return (px - cx_f) ** 2 + (py - cy_f) ** 2
-
-            result = minimize(dist_sq, np.array([theta], dtype=np.float64), args=(x, y), tol=tol)
-            theta = float(result.x[0] % two_pi)
-
-        theta_proj.append(theta)
-
-    return np.array(theta_proj, dtype=np.float64)
-
-
-def hkappa_analytic(theta_proj: np.ndarray, h: float, a: float, b: float, p: float) -> np.ndarray:
-    r = b + a * np.cos(p * theta_proj)
-    rp = -a * p * np.sin(p * theta_proj)
-    rpp = -a * p**2 * np.cos(p * theta_proj)
-    kappa = (r**2 + 2 * rp**2 - r * rpp) / (r**2 + rp**2) ** 1.5
-    return h * kappa
-
-
-def hkappa_div_normal_from_field(
-    phi: np.ndarray,
-    indices: np.ndarray,
-    h: float,
-    *,
-    delta: float = 0.0,
-) -> np.ndarray:
-    phi_x = np.zeros_like(phi, dtype=np.float64)
-    phi_y = np.zeros_like(phi, dtype=np.float64)
-    phi_x[:, 1:-1] = (phi[:, 2:] - phi[:, :-2]) / (2.0 * h)
-    phi_y[1:-1, :] = (phi[2:, :] - phi[:-2, :]) / (2.0 * h)
-
-    grad_norm = np.sqrt(phi_x**2 + phi_y**2 + delta)
-    nx = np.divide(phi_x, grad_norm, out=np.zeros_like(phi_x), where=grad_norm > 0.0)
-    ny = np.divide(phi_y, grad_norm, out=np.zeros_like(phi_y), where=grad_norm > 0.0)
-
-    dnx_dx = np.zeros_like(phi, dtype=np.float64)
-    dny_dy = np.zeros_like(phi, dtype=np.float64)
-    dnx_dx[:, 1:-1] = (nx[:, 2:] - nx[:, :-2]) / (2.0 * h)
-    dny_dy[1:-1, :] = (ny[2:, :] - ny[:-2, :]) / (2.0 * h)
-
-    kappa = dnx_dx + dny_dy
-    return h * kappa[indices[:, 0], indices[:, 1]]
-def save_meta(exp_dir: Path, cfg: dict) -> None:
+def _save_meta(exp_dir: Path, cfg: dict) -> None:
     exp_dir.mkdir(parents=True, exist_ok=True)
+    with (exp_dir / "meta.json").open("w", encoding="utf-8") as fh:
+        json.dump(dict(cfg), fh, indent=4)
+
+
+def _save_iter_h5(exp_dir: Path, n_iter: int, payload: dict) -> None:
+    with h5py.File(exp_dir / f"iter_{n_iter}.h5", "w") as fh:
+        for key, val in payload.items():
+            fh.create_dataset(key, data=val, compression="gzip")
+
+
+def _build_meta(
+    cfg: dict,
+    *,
+    mode: str,
+    cfl: float,
+    eps_sign_factor: float,
+    sign_mode: str,
+    time_order: int,
+    space_order: int,
+    formula_projection_band_cells: float,
+    exact_sdf_method: str,
+    exact_sdf_mp_dps: int,
+    exact_sdf_newton_tol: float | None,
+    exact_sdf_newton_max_iter: int,
+) -> dict:
     payload = dict(cfg)
-    payload["rho_eq"] = 1.0 / cfg["h"] + 1.0
+    payload["rho_eq"] = 1.0 / float(cfg["h"]) + 1.0
     payload["Omega"] = f"[-{cfg['L']}, {cfg['L']}]^2"
-    with (exp_dir / "meta.json").open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=4)
+    payload["data_source"] = mode
+    payload["phi0_mode"] = mode
+    if mode == TEST_DATA_MODE_FORMULA:
+        payload["phi0_constructor"] = "build_flower_phi0"
+    elif mode == TEST_DATA_MODE_FORMULA_PROJECTION_BAND:
+        payload["phi0_constructor"] = "build_flower_phi0 + narrow_band_projection"
+        payload["phi0_projection_band_cells"] = float(formula_projection_band_cells)
+    else:
+        payload["phi0_constructor"] = exact_sdf_method
+        payload["sdf_constructor"] = exact_sdf_method
+        payload["sdf_mp_dps"] = int(exact_sdf_mp_dps)
+        payload["sdf_newton_tol"] = exact_sdf_newton_tol
+        payload["sdf_newton_max_iter"] = int(exact_sdf_newton_max_iter)
+    payload["grid_indexing"] = "xy"
+    payload["reinitializer_cfl"] = float(cfl)
+    payload["reinitializer_eps_sign_factor"] = float(eps_sign_factor)
+    payload["reinitializer_sign_mode"] = str(sign_mode)
+    payload["reinitializer_impl"] = (
+        f"explicit_reinitializer(space_order={space_order}, time_order={time_order}, sign_mode={sign_mode}, eps_sign_factor={eps_sign_factor})"
+    )
+    payload["reinitializer_space_order"] = int(space_order)
+    payload["reinitializer_time_order"] = int(time_order)
+    payload["numerical_formula"] = "eq3_standard"
+    payload["stencil_encoding"] = "training_order"
+    payload["sampling_rule"] = "current_interface_nodes"
+    payload["target_rule"] = "analytic_projection_current_nodes"
+    return payload
 
 
-def save_iter_h5(exp_dir: Path, n_iter: int, payload: dict) -> None:
-    filepath = exp_dir / f"iter_{n_iter}.h5"
-    with h5py.File(filepath, "w") as handle:
-        for key, value in payload.items():
-            handle.create_dataset(key, data=value, compression="gzip")
+# ── 核心：构建测试载荷 ───────────────────────────────────────
+
+def _build_initial_field(
+    X: np.ndarray,
+    Y: np.ndarray,
+    *,
+    h: float,
+    a: float,
+    b: float,
+    p: int,
+    mode: str,
+    formula_projection_band_cells: float,
+    exact_sdf_method: str,
+    exact_sdf_mp_dps: int,
+    exact_sdf_newton_tol: float | None,
+    exact_sdf_newton_max_iter: int,
+) -> np.ndarray:
+    if mode == TEST_DATA_MODE_FORMULA:
+        return build_flower_phi0(X, Y, a, b, p)
+
+    if mode == TEST_DATA_MODE_FORMULA_PROJECTION_BAND:
+        phi0 = build_flower_phi0(X, Y, a, b, p)
+        band_mask = np.abs(phi0) <= float(formula_projection_band_cells) * h
+        rows, cols = np.where(band_mask)
+        if rows.size == 0:
+            return phi0
+
+        xy = np.column_stack((X[rows, cols], Y[rows, cols]))
+        theta_proj = find_projection_theta(xy, a, b, p)
+        radius = b + a * np.cos(p * theta_proj)
+        curve_x = radius * np.cos(theta_proj)
+        curve_y = radius * np.sin(theta_proj)
+        distance = np.sqrt((xy[:, 0] - curve_x) ** 2 + (xy[:, 1] - curve_y) ** 2)
+        corrected = phi0.copy()
+        corrected[rows, cols] = np.sign(phi0[rows, cols]) * distance
+        return corrected
+
+    if mode != TEST_DATA_MODE_EXACT_SDF:
+        raise ValueError(f"Unsupported test-data mode: {mode!r}")
+
+    if exact_sdf_method == "vectorized_exact_sdf":
+        return vectorized_exact_sdf(
+            X,
+            Y,
+            a,
+            b,
+            p,
+            tol=1e-11 if exact_sdf_newton_tol is None else float(exact_sdf_newton_tol),
+            max_iter=exact_sdf_newton_max_iter,
+        )
+    if exact_sdf_method == "high_precision_exact_sdf":
+        return high_precision_exact_sdf(
+            X,
+            Y,
+            a,
+            b,
+            p,
+            dps=exact_sdf_mp_dps,
+            tol=exact_sdf_newton_tol,
+            max_iter=exact_sdf_newton_max_iter,
+        )
+    raise ValueError(
+        "Unsupported exact_sdf_method="
+        f"{exact_sdf_method!r}. Expected 'vectorized_exact_sdf' or 'high_precision_exact_sdf'."
+    )
 
 
-def generate_test_datasets(output_dir: str | Path) -> None:
+def _build_test_payloads(
+    cfg: dict,
+    *,
+    mode: str,
+    cfl: float,
+    eps_sign_factor: float,
+    sign_mode: str,
+    time_order: int,
+    space_order: int,
+    formula_projection_band_cells: float,
+    exact_sdf_method: str,
+    exact_sdf_mp_dps: int,
+    exact_sdf_newton_tol: float | None,
+    exact_sdf_newton_max_iter: int,
+    test_iters: list[int],
+    ) -> dict[int, dict[str, np.ndarray]]:
+    X, Y, h = build_grid(float(cfg["L"]), int(cfg["N"]), indexing="xy")
+    reinit = LevelSetReinitializer(
+        indexing="xy",
+        cfl=cfl,
+        eps_sign_factor=eps_sign_factor,
+        sign_mode=sign_mode,
+        time_order=time_order,
+        space_order=space_order,
+    )
+    a, b, p = float(cfg["a"]), float(cfg["b"]), int(cfg["p"])
+    phi0 = _build_initial_field(
+        X,
+        Y,
+        h=h,
+        a=a,
+        b=b,
+        p=p,
+        mode=mode,
+        formula_projection_band_cells=formula_projection_band_cells,
+        exact_sdf_method=exact_sdf_method,
+        exact_sdf_mp_dps=exact_sdf_mp_dps,
+        exact_sdf_newton_tol=exact_sdf_newton_tol,
+        exact_sdf_newton_max_iter=exact_sdf_newton_max_iter,
+    )
+    payloads: dict[int, dict[str, np.ndarray]] = {}
+
+    for n_iter in test_iters:
+        phi = reinit.reinitialize(phi0, h, n_iter)
+        indices = _get_interface_indices(phi)
+        xy = _indices_to_xy(indices, X, Y) if len(indices) else np.zeros((0, 2))
+        theta_p = find_projection_theta(xy, a, b, p) if len(indices) else np.zeros((0,))
+        hk_tgt = hkappa_analytic(theta_p, h, a, b, p) if len(indices) else np.zeros((0,))
+        hk_fd = compute_hkappa(phi, indices, h, indexing="xy")
+        stencils = extract_3x3_stencils(phi, indices)
+
+        payloads[n_iter] = {
+            "indices": indices,
+            "xy": xy,
+            "theta_proj": theta_p,
+            "stencils_raw": stencils,
+            "hkappa_target": hk_tgt,
+            "hkappa_fd": hk_fd,
+        }
+    return payloads
+
+
+# ── 公共入口 ────────────────────────────────────────────────
+
+def generate_test_datasets(
+    output_dir: Union[str, Path],
+    *,
+    config: GenerateConfig | None = None,
+    mode_override: str | None = None,
+) -> None:
+    cfg = config or load_generate_config()
+    td = cfg.test_data
+
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    reinitializer = LevelSetReinitializer(cfl=CFL)
+    test_iters = list(td.test_iters)
+    scenarios = [s.as_dict() for s in td.scenarios]
+    mode = mode_override or td.mode
 
-    print("Launching Test Data Generation Pipeline")
-    for cfg in TEST_BLUEPRINTS:
-        exp_dir = output_dir / cfg["exp_id"]
-        print(f"\nStarting experiment: {cfg['exp_id']} ...")
+    banner = (
+        "[generate test] "
+        f"mode={mode} | cfl={td.cfl} | "
+        f"eps_sign_factor={td.eps_sign_factor} | "
+        f"time_order={td.time_order} | space_order={td.space_order} | sign_mode={td.sign_mode}"
+    )
+    if mode == TEST_DATA_MODE_EXACT_SDF:
+        banner += (
+            f" | exact_sdf_method={td.exact_sdf_method}"
+            f" | mp_dps={td.exact_sdf_mp_dps}"
+            f" | newton_max_iter={td.exact_sdf_newton_max_iter}"
+        )
+    elif mode == TEST_DATA_MODE_FORMULA_PROJECTION_BAND:
+        banner += f" | band_cells={td.formula_projection_band_cells}"
+    print(banner)
 
-        X, Y, h = build_grid(cfg["L"], cfg["N"])
-        phi0 = build_flower_phi0(X, Y, cfg["a"], cfg["b"], cfg["p"])
+    for scenario_cfg in scenarios:
+        exp_id = scenario_cfg["exp_id"]
+        exp_dir = output_dir / exp_id
+        print(f"\n  Experiment: {exp_id}")
 
-        mask_fixed = interface_band_mask(phi0)
-        fixed_indices = get_valid_indices(mask_fixed)
-        xy = indices_to_xy(fixed_indices, X, Y)
+        _save_meta(
+            exp_dir,
+            _build_meta(
+                scenario_cfg,
+                mode=mode,
+                cfl=td.cfl,
+                eps_sign_factor=td.eps_sign_factor,
+                sign_mode=td.sign_mode,
+                time_order=td.time_order,
+                space_order=td.space_order,
+                formula_projection_band_cells=td.formula_projection_band_cells,
+                exact_sdf_method=td.exact_sdf_method,
+                exact_sdf_mp_dps=td.exact_sdf_mp_dps,
+                exact_sdf_newton_tol=td.exact_sdf_newton_tol,
+                exact_sdf_newton_max_iter=td.exact_sdf_newton_max_iter,
+            ),
+        )
+        payloads = _build_test_payloads(
+                scenario_cfg,
+                mode=mode,
+                cfl=td.cfl,
+                eps_sign_factor=td.eps_sign_factor,
+                sign_mode=td.sign_mode,
+                time_order=td.time_order,
+                space_order=td.space_order,
+            formula_projection_band_cells=td.formula_projection_band_cells,
+            exact_sdf_method=td.exact_sdf_method,
+            exact_sdf_mp_dps=td.exact_sdf_mp_dps,
+            exact_sdf_newton_tol=td.exact_sdf_newton_tol,
+            exact_sdf_newton_max_iter=td.exact_sdf_newton_max_iter,
+            test_iters=test_iters,
+        )
 
-        theta_proj = find_projection_theta(xy, cfg["a"], cfg["b"], cfg["p"])
-        hkappa_target = hkappa_analytic(theta_proj, h, cfg["a"], cfg["b"], cfg["p"])
+        for n_iter in test_iters:
+            p = payloads[n_iter]
+            _save_iter_h5(exp_dir, n_iter, p)
+            M = p["stencils_raw"].shape[0]
+            print(f"    iter={n_iter:>3d}  M={M:>6d}  "
+                  f"hk_target∈[{p['hkappa_target'].min():.4f}, {p['hkappa_target'].max():.4f}]  "
+                  f"hk_fd∈[{p['hkappa_fd'].min():.4f}, {p['hkappa_fd'].max():.4f}]")
 
-        save_meta(exp_dir, cfg)
-
-        for n_iter in TEST_ITERS:
-            phi = reinitializer.reinitialize(phi0, h, n_iter)
-            stencils_raw = extract_3x3_stencils(phi, fixed_indices)
-            hkappa_fd = hkappa_div_normal_from_field(phi, fixed_indices, h)
-
-            payload = {
-                "indices": fixed_indices,
-                "xy": xy,
-                "theta_proj": theta_proj,
-                "stencils_raw": stencils_raw,
-                "hkappa_target": hkappa_target,
-                "hkappa_fd": hkappa_fd,
-            }
-            save_iter_h5(exp_dir, n_iter, payload)
-
-            sample_count = stencils_raw.shape[0]
-            print(f"  [{cfg['exp_id']} | Iter {n_iter}] M={sample_count} points.")
-            print(f"    Target hk min/max : ({hkappa_target.min():.4f}, {hkappa_target.max():.4f})")
-            print(f"    FD     hk min/max : ({hkappa_fd.min():.4f}, {hkappa_fd.max():.4f})")
-
-            if np.isnan(hkappa_target).any():
-                raise ValueError(f"Target contains NaN for {cfg['exp_id']} iter={n_iter}")
-            if np.isnan(hkappa_fd).any():
-                raise ValueError(f"Numerical hk contains NaN for {cfg['exp_id']} iter={n_iter}")
-
-    print("\nExplicit test data generation finished.")
-    print(f"Saved test experiments under: {output_dir}")
+    print(f"\n[generate test] Done. Output: {output_dir}")

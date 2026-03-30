@@ -1,0 +1,168 @@
+Experiment: H01 patch-level drift and exact-gap correlation check
+
+Date: 2026-03-27
+Hypothesis: H01 reinitializer pushes phi onto a wrong but stable discrete manifold
+
+Method / Config:
+- dataset: paper_formula_cfl05
+- phi0 mode: formula_phi0
+- cfl: 0.5
+- steps: 5, 10, 20
+- metrics per sampled node:
+  - abs_err_hk = |hkappa_fd - hkappa_target|
+  - center_move = |phi(step) - phi0| at sampled node
+  - center_exact_gap = |phi(step) - exact_sdf| at sampled node
+  - patch_move_mean = mean_3x3 |phi(step) - phi0|
+  - patch_exact_gap_mean = mean_3x3 |phi(step) - exact_sdf|
+- report Pearson correlations against abs_err_hk
+
+CASE smooth_256 h=0.003921569
+ step 5
+  samples 528
+  mean abs_err_hk            7.377792030e-03
+  mean center_move          4.144184509e-04
+  mean center_exact_gap     3.183678620e-05
+  mean patch_move           7.085167990e-04
+  mean patch_exact_gap      6.314307582e-05
+  corr(err, center_move)    0.375719
+  corr(err, center_exact)   0.412102
+  corr(err, patch_move)     0.460165
+  corr(err, patch_exact)    0.384577
+ step 10
+  samples 528
+  mean abs_err_hk            6.348262255e-03
+  mean center_move          4.320000471e-04
+  mean center_exact_gap     2.025347545e-05
+  mean patch_move           7.622496658e-04
+  mean patch_exact_gap      2.052012595e-05
+  corr(err, center_move)    0.344775
+  corr(err, center_exact)   0.409993
+  corr(err, patch_move)     0.421330
+  corr(err, patch_exact)    0.338664
+ step 20
+  samples 528
+  mean abs_err_hk            5.238662773e-03
+  mean center_move          4.322257824e-04
+  mean center_exact_gap     1.973710236e-05
+  mean patch_move           7.630385833e-04
+  mean patch_exact_gap      1.979635107e-05
+  corr(err, center_move)    0.301866
+  corr(err, center_exact)   0.388343
+  corr(err, patch_move)     0.369486
+  corr(err, patch_exact)    0.299619
+
+CASE smooth_266 h=0.003773585
+ step 5
+  samples 552
+  mean abs_err_hk            7.584492125e-03
+  mean center_move          3.962475309e-04
+  mean center_exact_gap     2.784534503e-05
+  mean patch_move           6.779806843e-04
+  mean patch_exact_gap      5.787630065e-05
+  corr(err, center_move)    0.385244
+  corr(err, center_exact)   0.526533
+  corr(err, patch_move)     0.473703
+  corr(err, patch_exact)    0.450198
+ step 10
+  samples 552
+  mean abs_err_hk            6.569677281e-03
+  mean center_move          4.122668872e-04
+  mean center_exact_gap     1.732068382e-05
+  mean patch_move           7.281077424e-04
+  mean patch_exact_gap      1.755720801e-05
+  corr(err, center_move)    0.376422
+  corr(err, center_exact)   0.554270
+  corr(err, patch_move)     0.461539
+  corr(err, patch_exact)    0.470913
+ step 20
+  samples 552
+  mean abs_err_hk            5.374109465e-03
+  mean center_move          4.124773260e-04
+  mean center_exact_gap     1.639491796e-05
+  mean patch_move           7.287984702e-04
+  mean patch_exact_gap      1.641303269e-05
+  corr(err, center_move)    0.349327
+  corr(err, center_exact)   0.504624
+  corr(err, patch_move)     0.423003
+  corr(err, patch_exact)    0.434972
+
+CASE smooth_276 h=0.003669724
+ step 5
+  samples 564
+  mean abs_err_hk            7.959524671e-03
+  mean center_move          3.837112700e-04
+  mean center_exact_gap     2.849496294e-05
+  mean patch_move           6.583439745e-04
+  mean patch_exact_gap      5.777695815e-05
+  corr(err, center_move)    0.434159
+  corr(err, center_exact)   0.492660
+  corr(err, patch_move)     0.517804
+  corr(err, patch_exact)    0.453158
+ step 10
+  samples 564
+  mean abs_err_hk            6.879535135e-03
+  mean center_move          3.997314449e-04
+  mean center_exact_gap     1.773034485e-05
+  mean patch_move           7.078489517e-04
+  mean patch_exact_gap      1.781289267e-05
+  corr(err, center_move)    0.415245
+  corr(err, center_exact)   0.499121
+  corr(err, patch_move)     0.494017
+  corr(err, patch_exact)    0.419815
+ step 20
+  samples 564
+  mean abs_err_hk            5.683866446e-03
+  mean center_move          3.999442384e-04
+  mean center_exact_gap     1.619381691e-05
+  mean patch_move           7.086076330e-04
+  mean patch_exact_gap      1.603638383e-05
+  corr(err, center_move)    0.382912
+  corr(err, center_exact)   0.452369
+  corr(err, patch_move)     0.460941
+  corr(err, patch_exact)    0.363314
+
+CASE acute_276 h=0.003629032
+ step 5
+  samples 672
+  mean abs_err_hk            2.720180928e-02
+  mean center_move          8.613207485e-04
+  mean center_exact_gap     8.081390599e-05
+  mean patch_move           1.480987393e-03
+  mean patch_exact_gap      1.121408106e-04
+  corr(err, center_move)    0.438433
+  corr(err, center_exact)   0.486225
+  corr(err, patch_move)     0.521215
+  corr(err, patch_exact)    0.348164
+ step 10
+  samples 672
+  mean abs_err_hk            2.103185584e-02
+  mean center_move          8.746852708e-04
+  mean center_exact_gap     6.468266217e-05
+  mean patch_move           1.548099145e-03
+  mean patch_exact_gap      6.489987460e-05
+  corr(err, center_move)    0.402208
+  corr(err, center_exact)   0.408946
+  corr(err, patch_move)     0.482186
+  corr(err, patch_exact)    0.277079
+ step 20
+  samples 672
+  mean abs_err_hk            1.565750770e-02
+  mean center_move          8.735700181e-04
+  mean center_exact_gap     6.046922908e-05
+  mean patch_move           1.545508469e-03
+  mean patch_exact_gap      6.017658131e-05
+  corr(err, center_move)    0.349360
+  corr(err, center_exact)   0.399840
+  corr(err, patch_move)     0.411888
+  corr(err, patch_exact)    0.275509
+
+Aggregate across case-step means:
+  corr(mean_err, mean_center_move)      0.920199
+  corr(mean_err, mean_center_exact_gap) 0.975224
+  corr(mean_err, mean_patch_move)       0.907195
+  corr(mean_err, mean_patch_exact_gap)  0.838344
+
+Conclusion:
+- abs_err_hk tracks center_exact_gap more strongly than center_move in every case family.
+- Across case-step means, error correlates more strongly with center_exact_gap (0.975) than with center_move (0.920).
+- This supports H01 more than a simple frozen-interface or generic over-movement explanation.

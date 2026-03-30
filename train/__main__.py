@@ -1,191 +1,194 @@
+"""
+train/__main__.py — ``python -m train`` 入口。
+"""
 from __future__ import annotations
 
 import argparse
 import os
+from datetime import datetime
 from pathlib import Path
-import sys
 
-# Ensure unbuffered output for real-time logging
-os.environ['PYTHONUNBUFFERED'] = '1'
+import yaml
+
+os.environ["PYTHONUNBUFFERED"] = "1"
 
 import torch
+import torch.multiprocessing as mp
+import concurrent.futures
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from .config import load_training_config, DEFAULT_CONFIG_PATH
 
-from project_runtime import cleanup_bytecode_caches, disable_bytecode_cache
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 
-disable_bytecode_cache()
 
-if __package__ in {None, ""}:
-    from train.config import load_training_config
-    from train.data_save import (
-        append_log_line,
-        create_result_output_path,
-        create_training_log_output_path,
-        save_results_to_txt,
-        save_zscore_stats,
-    )
-    from train.dataloader import build_dataloaders_from_h5
-    from train.model_structure import build_model_for_rho
-    from train.train import fit_regression_model, set_all_seeds
-else:
-    from .config import load_training_config
-    from .data_save import (
-        append_log_line,
-        create_result_output_path,
-        create_training_log_output_path,
-        save_results_to_txt,
-        save_zscore_stats,
-    )
-    from .dataloader import build_dataloaders_from_h5
-    from .model_structure import build_model_for_rho
-    from .train import fit_regression_model, set_all_seeds
+RESULT_COLUMNS = [
+    "rho", "best_epoch", "best_val_mae",
+    "test_mse", "test_mae", "test_max_ae", "elapsed_seconds",
+]
+
+
+def format_results_table(rows: list[dict[str, object]]) -> str:
+    if pd is not None:
+        frame = pd.DataFrame(rows, columns=RESULT_COLUMNS)
+        formatters = {
+            "best_val_mae": lambda v: f"{float(v):.6e}",
+            "test_mse": lambda v: f"{float(v):.6e}",
+            "test_mae": lambda v: f"{float(v):.6e}",
+            "test_max_ae": lambda v: f"{float(v):.6e}",
+            "elapsed_seconds": lambda v: f"{float(v):.2f}",
+        }
+        return frame.to_string(index=False, formatters=formatters)
+
+    prepared = []
+    for row in rows:
+        prepared.append({
+            "rho": str(row["rho"]),
+            "best_epoch": str(row["best_epoch"]),
+            "best_val_mae": f"{float(row['best_val_mae']):.6e}",
+            "test_mse": f"{float(row['test_mse']):.6e}",
+            "test_mae": f"{float(row['test_mae']):.6e}",
+            "test_max_ae": f"{float(row['test_max_ae']):.6e}",
+            "elapsed_seconds": f"{float(row['elapsed_seconds']):.2f}",
+        })
+    if not prepared:
+        return "No results."
+    widths = {c: max(len(c), *(len(r[c]) for r in prepared)) for c in RESULT_COLUMNS}
+    lines = [" ".join(c.rjust(widths[c]) for c in RESULT_COLUMNS)]
+    for r in prepared:
+        lines.append(" ".join(r[c].rjust(widths[c]) for c in RESULT_COLUMNS))
+    return "\n".join(lines)
+
+
+def save_results_to_txt(results: list[dict[str, object]], output_path: str | Path) -> str:
+    rows = [{c: r[c] for c in RESULT_COLUMNS} for r in results]
+    table = format_results_table(rows)
+    p = Path(output_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(table + "\n", encoding="utf-8")
+    return table
 
 
 def main() -> None:
     args = parse_args()
-    project_root = Path(__file__).resolve().parent.parent
-    config = load_training_config(args.config)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    cfg = load_training_config(args.config, overrides=args.config_overrides)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Determine model directory and data directory based on command
-    if args.command == "dataset":
-        dataset_id = args.dataset_id
-        model_dir = project_root / "model" / f"model_{dataset_id}"
-        data_dir = project_root / "data" / dataset_id
-    else:  # "rho" command
-        if args.dataset:
-            dataset_id = args.dataset
-            model_dir = project_root / "model" / f"model_{dataset_id}"
-            data_dir = project_root / "data" / dataset_id
-        else:
-            model_dir = project_root / "model"
-            data_dir = project_root / "data"
+    data_dir = cfg.data_dir / args.dataset
+    run_id = args.run_id if args.run_id else f"{args.dataset}_bs{cfg.batch_size}"
+    model_dir = cfg.model_dir / run_id
+    model_dir.mkdir(parents=True, exist_ok=True)
 
-    results_dir = project_root / "train" / "results"
-    training_log_path = create_training_log_output_path(results_dir)
-    result_rows: list[dict[str, object]] = []
-    stop_info_list: list[str] = []
+    dump = {
+        "run_id": run_id,
+        "dataset_source": args.dataset,
+        "trained_at": datetime.now().isoformat(),
+        "training_parameters": {
+            "batch_size": cfg.batch_size,
+            "max_epochs": cfg.max_epochs,
+            "patience": cfg.patience,
+            "optimizer": {"lr": cfg.optimizer.lr, "weight_decay": cfg.optimizer.weight_decay},
+        },
+    }
+    with open(model_dir / "train_config.yaml", "w", encoding="utf-8") as f:
+        yaml.dump(dump, f, sort_keys=False)
 
-    def emit(message: str) -> None:
-        print(message)
-        append_log_line(training_log_path, message)
-
-    for rho in args.rho_values:
-        set_all_seeds(config.training.seed)
-        data_path = data_dir / f"train_rho{rho}.h5"
-        checkpoint_path = model_dir / f"model_rho{rho}.pth"
-
-        emit("")
-        emit("=" * 72)
-        emit(f"Starting training for rho={rho} on device={device}")
-        emit("=" * 72)
-
-        train_loader, val_loader, test_loader, meta = build_dataloaders_from_h5(
-            data_path,
-            batch_size=config.training.batch_size,
-            seed=config.training.seed,
-            num_workers=0,
-        )
-        emit(
-            f"[rho={rho}] Data split | total={meta['N_total']} train={meta['N_train']} "
-            f"val={meta['N_val']} test={meta['N_test']} batch_size={meta['batch_size']}"
-        )
-        if meta["zero_sigma_features"]:
-            emit(
-                f"[rho={rho}] Warning: {meta['zero_sigma_features']} feature(s) had zero std "
-                "and were kept at sigma=1.0 to avoid division by zero."
-            )
-
-        model = build_model_for_rho(rho, config.model)
-        save_zscore_stats(rho, meta["mu"], meta["sigma"], model_dir)
-
-        result = fit_regression_model(
-            rho,
-            model,
-            train_loader,
-            val_loader,
-            test_loader,
-            optimizer_config=config.optimizer,
-            training_config=config.training,
-            device=device,
-            save_path=checkpoint_path,
-            log_message=lambda message: append_log_line(training_log_path, message),
-        )
-        result_rows.append(result)
+    # 根据 --sequential 参数选择并行或顺序执行
+    if args.sequential:
+        print(f"Running SEQUENTIAL training for rhos: {args.rho_values} on device: {device}")
+        from .trainer import run_training_worker
         
-        # Collect stop info for summary file
-        if result.get("stop_info"):
-            stop_info_list.append(f"[rho={rho}] {result['stop_info']}")
+        result_rows = []
+        stop_info_list = []
+        
+        for rho in args.rho_values:
+            try:
+                print(f"[Main] Starting training for rho={rho}...")
+                result = run_training_worker(
+                    rho,
+                    device,
+                    args.config,
+                    args.config_overrides,
+                    str(data_dir),
+                    str(model_dir),
+                )
+                result_rows.append(result)
+                if result.get("stop_info"):
+                    stop_info_list.append(f"[rho={rho}] {result['stop_info']}")
+                print(f"[Main] Completed rho={rho}.")
+            except Exception as e:
+                print(f"[Main] Exception for rho={rho}: {e}")
+    else:
+        print(f"Submitting parallel jobs for rhos: {args.rho_values} on device: {device}")
 
-    output_path = create_result_output_path(results_dir)
+        from .trainer import run_training_worker
+
+        result_rows = []
+        stop_info_list = []
+        ctx = mp.get_context("spawn")
+
+        with concurrent.futures.ProcessPoolExecutor(max_workers=len(args.rho_values), mp_context=ctx) as executor:
+            futures = {
+                executor.submit(
+                    run_training_worker,
+                    rho,
+                    device,
+                    args.config,
+                    args.config_overrides,
+                    str(data_dir),
+                    str(model_dir),
+                ): rho
+                for rho in args.rho_values
+            }
+            for future in concurrent.futures.as_completed(futures):
+                rho = futures[future]
+                try:
+                    result = future.result()
+                    result_rows.append(result)
+                    if result.get("stop_info"):
+                        stop_info_list.append(f"[rho={rho}] {result['stop_info']}")
+                    print(f"[Main] Completed rho={rho}.")
+                except Exception as e:
+                    print(f"[Main] Exception for rho={rho}: {e}")
+
+    output_path = model_dir / "training_summary.txt"
     table = save_results_to_txt(result_rows, output_path)
-    
-    # Save stop_summary.txt in model_dir
+
     if stop_info_list:
-        stop_summary_path = model_dir / "stop_summary.txt"
-        model_dir.mkdir(parents=True, exist_ok=True)
-        with open(stop_summary_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(stop_info_list) + "\n")
-        emit(f"Stop summary saved to {stop_summary_path}")
-    
-    emit("")
-    emit("Final summary:")
+        (model_dir / "stop_summary.txt").write_text("\n".join(stop_info_list) + "\n", encoding="utf-8")
+
+    print("\nFinal Training Summary:")
     for line in table.splitlines():
-        emit(line)
-    emit("")
-    emit(f"Final summary saved to {output_path}")
-    emit(f"Training log saved to {training_log_path}")
+        print(line)
+    print(f"\nSaved to {output_path}")
 
 
 def parse_args() -> argparse.Namespace:
+    cfg = load_training_config()
     parser = argparse.ArgumentParser(description="Train rho-specific curvature MLP models.")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    # "dataset" command - train all rho values for a specific dataset
-    dataset_parser = subparsers.add_parser("dataset", help="Train all rho-specific models for a dataset.")
-    dataset_parser.add_argument("dataset_id", type=str, help="Dataset ID (e.g., data_001, acute_276)")
-    dataset_parser.add_argument(
-        "--rho",
-        nargs="+",
-        type=int,
-        default=[256, 266, 276],
-        help="rho values to train (default: 256 266 276)",
-    )
-    dataset_parser.add_argument(
-        "--config",
-        default=str(Path(__file__).resolve().with_name("config.txt")),
-        help="Path to the training config file.",
-    )
-
-    # "rho" command - train specific rho values (with optional dataset)
-    rho_parser = subparsers.add_parser("rho", help="Train one or more rho-specific models.")
-    rho_parser.add_argument("rho_values", nargs="+", type=int, help="rho values to train, e.g. 256 266 276")
-    rho_parser.add_argument(
-        "--dataset",
-        type=str,
-        default=None,
-        help="Dataset ID (optional). If provided, data will be loaded from data/{dataset_id}/",
-    )
-    rho_parser.add_argument(
-        "--config",
-        default=str(Path(__file__).resolve().with_name("config.txt")),
-        help="Path to the training config file.",
-    )
-    
+    parser.add_argument("--dataset", type=str, required=True, help="Dataset ID (e.g., ds01)")
+    parser.add_argument("--run-id", type=str, default="", help="Optional Run ID")
+    parser.add_argument("--rho", nargs="+", type=int, default=list(cfg.resolutions),
+                        help=f"rho values to train (default: {list(cfg.resolutions)})")
+    parser.add_argument("--config", default=str(DEFAULT_CONFIG_PATH), help="Config yaml path.")
+    parser.add_argument("--batch-size", type=int, default=None, help="Override batch size from config.")
+    parser.add_argument("--sequential", action="store_true",
+                        help="Run training sequentially (one rho at a time) instead of in parallel")
     args = parser.parse_args()
-    
-    # For dataset command, set rho_values from the --rho argument
-    if args.command == "dataset":
-        args.rho_values = args.rho
-    
+    args.rho_values = args.rho
+    args.config_overrides = {"batch_size": args.batch_size}
     return args
 
 
 if __name__ == "__main__":
+    import multiprocessing
+    try:
+        multiprocessing.set_start_method("spawn")
+    except RuntimeError:
+        pass
     try:
         main()
-    finally:
-        cleanup_bytecode_caches(PROJECT_ROOT)
+    except KeyboardInterrupt:
+        print("\nTraining interrupted by user.")

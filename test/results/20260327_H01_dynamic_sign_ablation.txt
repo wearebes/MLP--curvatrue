@@ -1,0 +1,166 @@
+Experiment: H01 dynamic-sign reinitializer ablation
+
+Date: 2026-03-27
+Hypothesis: frozen S(phi0) in the current reinitializer is a main cause of the paper-gap
+
+Methods compared:
+- frozen_sign: current repo implementation
+- dynamic_sign: recompute S(phi) at every RK stage
+
+Numerical baseline:
+
+CASE smooth_256 h=0.003921569
+ step 5
+  frozen_sign       n=528 mae=7.377763886e-03 mse=1.408837108e-04
+  dynamic_sign      n=528 mae=4.847873839e-03 mse=5.433506861e-05
+  delta_mae(dynamic-frozen) -2.529890048e-03
+  delta_mse(dynamic-frozen) -8.654864218e-05
+ step 10
+  frozen_sign       n=528 mae=6.348238280e-03 mse=9.829562261e-05
+  dynamic_sign      n=528 mae=4.302375112e-03 mse=4.072064003e-05
+  delta_mae(dynamic-frozen) -2.045863168e-03
+  delta_mse(dynamic-frozen) -5.757498258e-05
+ step 20
+  frozen_sign       n=528 mae=5.238644300e-03 mse=6.361652245e-05
+  dynamic_sign      n=528 mae=3.711277771e-03 mse=2.785724348e-05
+  delta_mae(dynamic-frozen) -1.527366529e-03
+  delta_mse(dynamic-frozen) -3.575927897e-05
+
+CASE smooth_266 h=0.003773585
+ step 5
+  frozen_sign       n=552 mae=7.584453638e-03 mse=1.476565432e-04
+  dynamic_sign      n=552 mae=4.854403072e-03 mse=5.516118386e-05
+  delta_mae(dynamic-frozen) -2.730050565e-03
+  delta_mse(dynamic-frozen) -9.249535938e-05
+ step 10
+  frozen_sign       n=552 mae=6.569644029e-03 mse=9.817573260e-05
+  dynamic_sign      n=552 mae=4.337239907e-03 mse=4.053381676e-05
+  delta_mae(dynamic-frozen) -2.232404123e-03
+  delta_mse(dynamic-frozen) -5.764191584e-05
+ step 20
+  frozen_sign       n=552 mae=5.374084362e-03 mse=6.008374944e-05
+  dynamic_sign      n=552 mae=3.795876135e-03 mse=2.850853437e-05
+  delta_mae(dynamic-frozen) -1.578208228e-03
+  delta_mse(dynamic-frozen) -3.157521508e-05
+
+CASE smooth_276 h=0.003669724
+ step 5
+  frozen_sign       n=564 mae=7.959440242e-03 mse=1.700055931e-04
+  dynamic_sign      n=564 mae=5.012094664e-03 mse=6.162192901e-05
+  delta_mae(dynamic-frozen) -2.947345579e-03
+  delta_mse(dynamic-frozen) -1.083836641e-04
+ step 10
+  frozen_sign       n=564 mae=6.879463364e-03 mse=1.188439795e-04
+  dynamic_sign      n=564 mae=4.458190305e-03 mse=4.630297498e-05
+  delta_mae(dynamic-frozen) -2.421273060e-03
+  delta_mse(dynamic-frozen) -7.254100449e-05
+ step 20
+  frozen_sign       n=564 mae=5.683809889e-03 mse=7.420385831e-05
+  dynamic_sign      n=564 mae=3.867339502e-03 mse=3.153529338e-05
+  delta_mae(dynamic-frozen) -1.816470387e-03
+  delta_mse(dynamic-frozen) -4.266856494e-05
+
+CASE acute_276 h=0.003629032
+ step 5
+  frozen_sign       n=672 mae=2.720178776e-02 mse=1.997372340e-03
+  dynamic_sign      n=672 mae=1.392980877e-02 mse=4.739947275e-04
+  delta_mae(dynamic-frozen) -1.327197899e-02
+  delta_mse(dynamic-frozen) -1.523377613e-03
+ step 10
+  frozen_sign       n=672 mae=2.103184028e-02 mse=1.135420024e-03
+  dynamic_sign      n=672 mae=1.216999287e-02 mse=3.599965363e-04
+  delta_mae(dynamic-frozen) -8.861847401e-03
+  delta_mse(dynamic-frozen) -7.754234873e-04
+ step 20
+  frozen_sign       n=672 mae=1.565749741e-02 mse=6.410070080e-04
+  dynamic_sign      n=672 mae=1.020169389e-02 mse=2.590849883e-04
+  delta_mae(dynamic-frozen) -5.455803528e-03
+  delta_mse(dynamic-frozen) -3.819220197e-04
+
+Origin model:
+
+CASE smooth_256 rho=256 h=0.003921569
+ step 5
+  frozen_sign       n=528 mae=6.043097928e-03 mse=1.041653315e-04
+  dynamic_sign      n=528 mae=3.872376509e-03 mse=3.928241145e-05
+  delta_mae(dynamic-frozen) -2.170721419e-03
+  delta_mse(dynamic-frozen) -6.488292010e-05
+ step 10
+  frozen_sign       n=528 mae=5.306893549e-03 mse=8.018261143e-05
+  dynamic_sign      n=528 mae=3.395975971e-03 mse=3.036051268e-05
+  delta_mae(dynamic-frozen) -1.910917578e-03
+  delta_mse(dynamic-frozen) -4.982209875e-05
+ step 20
+  frozen_sign       n=528 mae=4.306813418e-03 mse=5.097903566e-05
+  dynamic_sign      n=528 mae=2.863248566e-03 mse=1.959245461e-05
+  delta_mae(dynamic-frozen) -1.443564852e-03
+  delta_mse(dynamic-frozen) -3.138658104e-05
+
+CASE smooth_266 rho=266 h=0.003773585
+ step 5
+  frozen_sign       n=552 mae=6.251773737e-03 mse=1.123244783e-04
+  dynamic_sign      n=552 mae=3.978054053e-03 mse=4.181503486e-05
+  delta_mae(dynamic-frozen) -2.273719684e-03
+  delta_mse(dynamic-frozen) -7.050944342e-05
+ step 10
+  frozen_sign       n=552 mae=5.685071208e-03 mse=8.163674130e-05
+  dynamic_sign      n=552 mae=3.622706468e-03 mse=3.189106450e-05
+  delta_mae(dynamic-frozen) -2.062364740e-03
+  delta_mse(dynamic-frozen) -4.974567680e-05
+ step 20
+  frozen_sign       n=552 mae=4.594605449e-03 mse=4.923296575e-05
+  dynamic_sign      n=552 mae=3.110788583e-03 mse=2.160125802e-05
+  delta_mae(dynamic-frozen) -1.483816866e-03
+  delta_mse(dynamic-frozen) -2.763170773e-05
+
+CASE smooth_276 rho=276 h=0.003669724
+ step 5
+  frozen_sign       n=564 mae=6.796949749e-03 mse=1.339901435e-04
+  dynamic_sign      n=564 mae=4.245346121e-03 mse=4.868917190e-05
+  delta_mae(dynamic-frozen) -2.551603627e-03
+  delta_mse(dynamic-frozen) -8.530097157e-05
+ step 10
+  frozen_sign       n=564 mae=6.181049799e-03 mse=1.038172737e-04
+  dynamic_sign      n=564 mae=3.894491311e-03 mse=3.867736870e-05
+  delta_mae(dynamic-frozen) -2.286558488e-03
+  delta_mse(dynamic-frozen) -6.513990505e-05
+ step 20
+  frozen_sign       n=564 mae=5.063351539e-03 mse=6.413634865e-05
+  dynamic_sign      n=564 mae=3.346344004e-03 mse=2.553610476e-05
+  delta_mae(dynamic-frozen) -1.717007535e-03
+  delta_mse(dynamic-frozen) -3.860024389e-05
+
+CASE acute_276 rho=276 h=0.003629032
+ step 5
+  frozen_sign       n=672 mae=2.183217190e-02 mse=1.337097044e-03
+  dynamic_sign      n=672 mae=1.152755206e-02 mse=3.314561593e-04
+  delta_mae(dynamic-frozen) -1.030461984e-02
+  delta_mse(dynamic-frozen) -1.005640885e-03
+ step 10
+  frozen_sign       n=672 mae=1.892190777e-02 mse=9.304987762e-04
+  dynamic_sign      n=672 mae=1.073571506e-02 mse=2.738324209e-04
+  delta_mae(dynamic-frozen) -8.186192712e-03
+  delta_mse(dynamic-frozen) -6.566663553e-04
+ step 20
+  frozen_sign       n=672 mae=1.406977477e-02 mse=5.262623044e-04
+  dynamic_sign      n=672 mae=8.958219737e-03 mse=1.891776607e-04
+  delta_mae(dynamic-frozen) -5.111555031e-03
+  delta_mse(dynamic-frozen) -3.370846438e-04
+
+Aggregate summary:
+- Numerical mean MSE across 12 case-steps:
+  - frozen_sign  = 3.954637237e-04
+  - dynamic_sign = 1.233044114e-04
+  - relative reduction = 68.82%
+- Origin mean MSE across 12 case-steps:
+  - frozen_sign  = 2.978602545e-04
+  - dynamic_sign = 9.099263520e-05
+  - relative reduction = 69.45%
+- Per-row MSE reduction range:
+  - numerical: 52.55% to 76.27%
+  - origin: 56.12% to 75.21%
+
+Conclusion:
+- Replacing frozen S(phi0) by dynamic S(phi) is the strongest improvement found so far.
+- The gain is systematic on all 12 irregular regular-grid case-steps for both numerical and origin.
+- This does not prove that the paper used dynamic S(phi), because the text describes S(phi0); it does show that the current frozen-sign implementation is a major source of the remaining gap.

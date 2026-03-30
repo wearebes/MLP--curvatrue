@@ -1,0 +1,22 @@
+# train 模块独立配置
+resolutions: [256, 266, 276]
+data_dir: data
+model_dir: model
+
+seed: 42
+batch_size: 256
+max_epochs: 500
+patience: 30
+
+optimizer:
+  lr: 0.00015
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  weight_decay: 0.0
+
+model:
+  input_dim: 9
+  default_hidden_dim: 128
+  hidden_dim_overrides:
+    266: 140
+    276: 140

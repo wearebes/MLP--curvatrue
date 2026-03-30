@@ -1,0 +1,88 @@
+train_data:
+  resolutions: [256, 266, 276]
+  geometry_seed: 42
+  variations: 5
+  cfl: 0.5
+  eps_weno: 1.0e-6
+  eps_sign_factor: 1.0
+  sign_mode: frozen_phi0
+  time_order: 3
+  space_order: 5
+  reinit_steps: [5, 10, 15, 20]
+
+test_data:
+  mode: formula_phi0
+  cfl: 0.5
+  eps_sign_factor: 1.0
+  sign_mode: dynamic_phi
+  time_order: 3
+  space_order: 5
+  formula_projection_band_cells: 2.0
+  exact_sdf_method: high_precision_exact_sdf
+  exact_sdf_mp_dps: 80
+  exact_sdf_newton_tol:
+  exact_sdf_newton_max_iter: 100
+  test_iters: [5, 10, 20]
+  scenarios:
+    - exp_id: smooth_256
+      blueprint_id: smooth_256
+      experiment_type: smooth
+      rho_model: 256
+      L: 0.207843
+      N: 107
+      h: 3.921569e-3
+      a: 0.05
+      b: 0.15
+      p: 3
+    - exp_id: smooth_266
+      blueprint_id: smooth_266
+      experiment_type: smooth
+      rho_model: 266
+      L: 0.207547
+      N: 111
+      h: 3.773585e-3
+      a: 0.05
+      b: 0.15
+      p: 3
+    - exp_id: smooth_276
+      blueprint_id: smooth_276
+      experiment_type: smooth
+      rho_model: 276
+      L: 0.207339
+      N: 114
+      h: 3.669724e-3
+      a: 0.05
+      b: 0.15
+      p: 3
+    - exp_id: acute_256
+      blueprint_id: acute_256
+      experiment_type: acute
+      rho_model: 256
+      L: 0.232826
+      N: 120
+      h: 3.913043e-3
+      a: 0.075
+      b: 0.15
+      p: 3
+    - exp_id: acute_266
+      blueprint_id: acute_266
+      experiment_type: acute
+      rho_model: 266
+      L: 0.232563
+      N: 124
+      h: 3.781513e-3
+      a: 0.075
+      b: 0.15
+      p: 3
+    - exp_id: acute_276
+      blueprint_id: acute_276
+      experiment_type: acute
+      rho_model: 276
+      L: 0.232258
+      N: 129
+      h: 3.629032e-3
+      a: 0.075
+      b: 0.15
+      p: 3
+
+data_dir: data

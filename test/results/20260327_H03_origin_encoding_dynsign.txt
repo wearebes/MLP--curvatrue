@@ -1,0 +1,32 @@
+Experiment: H03 origin encoding check on dynamic-sign dataset
+
+Date: 2026-03-27
+Goal: verify whether the remaining paper-gap is mostly an origin-input encoding mismatch
+
+CASE smooth_256
+ step 5 training_order_mse=3.928241145e-05 legacy_flat_mse=3.879618821e-05 ratio_to_paper training=15.29 legacy=15.10 winner=legacy_flat
+ step 10 training_order_mse=3.036051268e-05 legacy_flat_mse=3.041451234e-05 ratio_to_paper training=42.69 legacy=42.76 winner=training_order
+ step 20 training_order_mse=1.959245461e-05 legacy_flat_mse=1.967525005e-05 ratio_to_paper training=34.89 legacy=35.04 winner=training_order
+
+CASE smooth_266
+ step 5 training_order_mse=4.181503486e-05 legacy_flat_mse=4.206839332e-05 ratio_to_paper training=16.35 legacy=16.45 winner=training_order
+ step 10 training_order_mse=3.189106450e-05 legacy_flat_mse=3.171380171e-05 ratio_to_paper training=38.27 legacy=38.05 winner=legacy_flat
+ step 20 training_order_mse=2.160125802e-05 legacy_flat_mse=2.138744696e-05 ratio_to_paper training=35.17 legacy=34.82 winner=legacy_flat
+
+CASE smooth_276
+ step 5 training_order_mse=4.868917190e-05 legacy_flat_mse=4.849239186e-05 ratio_to_paper training=20.09 legacy=20.01 winner=legacy_flat
+ step 10 training_order_mse=3.867736870e-05 legacy_flat_mse=3.852524485e-05 ratio_to_paper training=45.50 legacy=45.32 winner=legacy_flat
+ step 20 training_order_mse=2.553610476e-05 legacy_flat_mse=2.546163284e-05 ratio_to_paper training=36.26 legacy=36.15 winner=legacy_flat
+
+CASE acute_276
+ step 5 training_order_mse=3.314561593e-04 legacy_flat_mse=3.260504966e-04 ratio_to_paper training=12.19 legacy=12.00 winner=legacy_flat
+ step 10 training_order_mse=2.738324209e-04 legacy_flat_mse=2.728221969e-04 ratio_to_paper training=24.29 legacy=24.20 winner=legacy_flat
+ step 20 training_order_mse=1.891776607e-04 legacy_flat_mse=1.879675833e-04 ratio_to_paper training=17.11 legacy=17.00 winner=legacy_flat
+
+Average ratio to paper MSE:
+- training_order = 28.17
+- legacy_flat    = 28.07
+
+Conclusion:
+- Switching from training_order to legacy_flat produces only marginal changes.
+- Encoding is a residual issue, not a main cause of the current gap.

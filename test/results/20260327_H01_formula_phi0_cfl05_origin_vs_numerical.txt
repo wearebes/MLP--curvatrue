@@ -1,0 +1,58 @@
+Experiment: H01 baseline reproduction using formula_phi0 + cfl=0.5
+
+Date: 2026-03-27
+Hypothesis: H01 reinitializer pushes phi onto a wrong but stable discrete manifold
+
+Method / Config:
+- pipeline: formula_phi0 -> reinitialize -> sample interface-adjacent nodes -> 3x3 stencil -> projection target
+- data source: paper_formula_cfl05
+- phi0 mode: formula_phi0
+- cfl: 0.5
+- time_order: 3
+- space_order: 5
+- test iters: 5, 10, 20
+- target: projection-based analytic hkappa
+- compared methods: numerical eq.(3), origin MLP
+
+Commands:
+1. python -m generate test --dataset-name paper_formula_cfl05 --mode formula_phi0
+2. python -m test numerical origin --data-split test --source paper_formula_cfl05
+
+Raw Result Snapshot:
+
+[test] Numerical | model=baseline_numerical | curvature=expanded_formula | nodes=current_interface_nodes | source=paper_formula_cfl05
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        528 7.377792e-03 4.532184e-02 1.408848e-04
+smooth/smooth_256        256            10        528 6.348262e-03 4.144919e-02 9.829639e-05
+smooth/smooth_256        256            20        528 5.238663e-03 3.402353e-02 6.361701e-05
+smooth/smooth_266        266             5        552 7.584492e-03 4.785551e-02 1.476579e-04
+smooth/smooth_266        266            10        552 6.569677e-03 4.179039e-02 9.817662e-05
+smooth/smooth_266        266            20        552 5.374109e-03 2.768808e-02 6.008427e-05
+smooth/smooth_276        276             5        564 7.959525e-03 5.021214e-02 1.700092e-04
+smooth/smooth_276        276            10        564 6.879535e-03 4.269672e-02 1.188464e-04
+smooth/smooth_276        276            20        564 5.683866e-03 3.448280e-02 7.420531e-05
+  acute/acute_276        276             5        672 2.720181e-02 1.832124e-01 1.997375e-03
+  acute/acute_276        276            10        672 2.103186e-02 1.588810e-01 1.135422e-03
+  acute/acute_276        276            20        672 1.565751e-02 1.396333e-01 6.410078e-04
+
+[test] Origin | model=origin | curvature=model_prediction | nodes=current_interface_nodes | source=paper_formula_cfl05
+
+         group_id  rho_model  step_or_iter  N_samples       MAE_hk     MaxAE_hk       MSE_hk
+smooth/smooth_256        256             5        528 6.043117e-03 4.473487e-02 1.041660e-04
+smooth/smooth_256        256            10        528 5.306907e-03 4.087019e-02 8.018309e-05
+smooth/smooth_256        256            20        528 4.306825e-03 3.400611e-02 5.097931e-05
+smooth/smooth_266        266             5        552 6.251799e-03 4.713093e-02 1.123253e-04
+smooth/smooth_266        266            10        552 5.685092e-03 3.972728e-02 8.163732e-05
+smooth/smooth_266        266            20        552 4.594624e-03 2.752116e-02 4.923328e-05
+smooth/smooth_276        276             5        564 6.797011e-03 5.171706e-02 1.339927e-04
+smooth/smooth_276        276            10        564 6.181097e-03 4.115374e-02 1.038191e-04
+smooth/smooth_276        276            20        564 5.063380e-03 3.417619e-02 6.413734e-05
+  acute/acute_276        276             5        672 2.183219e-02 1.526485e-01 1.337099e-03
+  acute/acute_276        276            10        672 1.892192e-02 1.316298e-01 9.304999e-04
+  acute/acute_276        276            20        672 1.406978e-02 1.210410e-01 5.262630e-04
+
+Summary Notes:
+- sample counts match the paper-style regular-grid cases for the currently configured scenarios
+- this run establishes the paper-style formula_phi0 baseline under cfl=0.5
+- current mismatch with the paper is therefore not due to using the wrong high-level pipeline

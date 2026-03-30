@@ -1,7 +1,13 @@
+"""train 模块配置加载器。"""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+
+import yaml
+
+_CONFIG_DIR = Path(__file__).resolve().parent
+DEFAULT_CONFIG_PATH = _CONFIG_DIR / "config.yaml"
 
 
 @dataclass(frozen=True)
@@ -13,88 +19,77 @@ class OptimizerConfig:
 
 
 @dataclass(frozen=True)
-class TrainingRuntimeConfig:
-    max_epochs: int
-    patience: int
-    batch_size: int
-    seed: int
-
-
-@dataclass(frozen=True)
 class ModelConfig:
-    hidden_dims: dict[int, int]
+    input_dim: int
+    default_hidden_dim: int
+    hidden_dim_overrides: dict[int, int]
 
     def hidden_dim_for(self, rho: int) -> int:
-        try:
-            return self.hidden_dims[rho]
-        except KeyError as exc:
-            supported = ", ".join(str(key) for key in sorted(self.hidden_dims))
-            raise KeyError(f"Unsupported rho={rho}. Supported values: {supported}") from exc
+        return int(self.hidden_dim_overrides.get(int(rho), self.default_hidden_dim))
 
 
 @dataclass(frozen=True)
 class TrainingConfig:
+    resolutions: tuple[int, ...]
+    data_dir: Path
+    model_dir: Path
+    seed: int
+    batch_size: int
+    max_epochs: int
+    patience: int
     optimizer: OptimizerConfig
-    training: TrainingRuntimeConfig
     model: ModelConfig
 
 
-def load_training_config(config_path: str | Path) -> TrainingConfig:
-    path = Path(config_path)
-    raw_values: dict[str, str] = {}
+def load_training_config(
+    config_path: str | Path | None = None,
+    overrides: dict[str, object] | None = None,
+) -> TrainingConfig:
+    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+    if not path.is_absolute():
+        path = _CONFIG_DIR.parent / path
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
-    for line_number, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        stripped = raw_line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if "=" not in stripped:
-            raise ValueError(f"Invalid config line {line_number}: {raw_line}")
-        key, value = stripped.split("=", 1)
-        raw_values[key.strip()] = value.strip()
-
-    required_keys = {
-        "lr",
-        "betas",
-        "eps",
-        "weight_decay",
-        "max_epochs",
-        "patience",
-        "batch_size",
-        "seed",
-        "hidden_dim_256",
-        "hidden_dim_266",
-        "hidden_dim_276",
-    }
-    missing = sorted(required_keys - raw_values.keys())
-    if missing:
-        raise KeyError(f"Missing required config keys: {', '.join(missing)}")
-
+    opt = raw["optimizer"]
+    betas_raw = opt["betas"]
     optimizer = OptimizerConfig(
-        lr=float(raw_values["lr"]),
-        betas=_parse_betas(raw_values["betas"]),
-        eps=float(raw_values["eps"]),
-        weight_decay=float(raw_values["weight_decay"]),
-    )
-    
-    training = TrainingRuntimeConfig(
-        max_epochs=int(raw_values["max_epochs"]),
-        patience=int(raw_values["patience"]),
-        batch_size=int(raw_values["batch_size"]),
-        seed=int(raw_values["seed"]),
+        lr=float(opt["lr"]),
+        betas=(float(betas_raw[0]), float(betas_raw[1])),
+        eps=float(opt["eps"]),
+        weight_decay=float(opt["weight_decay"]),
     )
 
+    mdl = raw["model"]
     model = ModelConfig(
-        hidden_dims={
-            256: int(raw_values["hidden_dim_256"]),
-            266: int(raw_values["hidden_dim_266"]),
-            276: int(raw_values["hidden_dim_276"]),
-        }
+        input_dim=int(mdl["input_dim"]),
+        default_hidden_dim=int(mdl["default_hidden_dim"]),
+        hidden_dim_overrides={int(k): int(v) for k, v in mdl.get("hidden_dim_overrides", {}).items()},
     )
-    return TrainingConfig(optimizer=optimizer, training=training, model=model)
 
+    data_dir = Path(raw.get("data_dir", "data"))
+    model_dir = Path(raw.get("model_dir", "model"))
+    if not data_dir.is_absolute():
+        data_dir = _CONFIG_DIR.parent / data_dir
+    if not model_dir.is_absolute():
+        model_dir = _CONFIG_DIR.parent / model_dir
 
-def _parse_betas(raw_value: str) -> tuple[float, float]:
-    parts = [part.strip() for part in raw_value.split(",") if part.strip()]
-    if len(parts) != 2:
-        raise ValueError(f"betas must contain exactly two comma-separated values, got: {raw_value}")
-    return float(parts[0]), float(parts[1])
+    config = TrainingConfig(
+        resolutions=tuple(int(r) for r in raw["resolutions"]),
+        data_dir=data_dir,
+        model_dir=model_dir,
+        seed=int(raw["seed"]),
+        batch_size=int(raw["batch_size"]),
+        max_epochs=int(raw["max_epochs"]),
+        patience=int(raw["patience"]),
+        optimizer=optimizer,
+        model=model,
+    )
+    if not overrides:
+        return config
+
+    normalized: dict[str, object] = {}
+    if "batch_size" in overrides and overrides["batch_size"] is not None:
+        normalized["batch_size"] = int(overrides["batch_size"])
+    if not normalized:
+        return config
+    return replace(config, **normalized)
