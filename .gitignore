@@ -1,23 +1,21 @@
-# ── Python cache ──────────────────────────────────────
+# Python cache
 __pycache__/
 *.py[cod]
 
-# ── Cache / IDE ────────────────────────────────────────
+# Cache / IDE
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
 .idea/
 .vscode/
 
-# ── DVC-managed (do NOT add these to git) ─────────────
-# DVC will auto-add its own ignores for data/ and model/,
-# but we keep these as fallback safety nets.
+# DVC-managed directories
 /data
 /model
+/logs
 
-# ── SLURM temporary output (not tracked anywhere) ─────
+# SLURM stdout/stderr
 slurm-*.out
 slurm-*.err
 *.out
 *.err
-".dvc/config"  

@@ -31,7 +31,7 @@ class CurvatureMLP(nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.MLP(inputs)
 
-
+#initialization of the weight
 def init_linear_weights(module: nn.Module) -> None:
     if isinstance(module, nn.Linear):
         nn.init.xavier_uniform_(module.weight)

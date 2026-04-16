@@ -310,3 +310,10 @@ python -m test numerical origin neural --data-split test --run-id model_data02_0
 | 精度输出      | `.6e` 科学计数法          | 保留 e-16 级别小值精度        |
 | 数据对称      | ±stencil 镜像             | 利用 κ 的符号对称性扩充训练集 |
 | 重初始化      | WENO5 + TVD-RK3 + Godunov | 高阶空间 + 高阶时间，数值稳定 |
+
+---
+
+## 数学报告
+
+完整的数学表述、统一符号体系以及 `Method + Appendix` 体例的推导见 [docs/report.md](e:\Research\PDE\code1\docs\report.md)。
+README 仅保留流水线与使用说明，不再承载完整的方法学推导。

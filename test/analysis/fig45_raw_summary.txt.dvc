@@ -1,0 +1,5 @@
+outs:
+- md5: 75d95b8d0d9c5b05ce631e0b02bc0d36
+  size: 11871
+  hash: md5
+  path: fig45_raw_summary.txt

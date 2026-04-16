@@ -1,0 +1,29 @@
+resolutions:
+- 256
+- 266
+data_dir: test/fixtures/phase3_schedule/data
+model_dir: test/fixtures/phase3_schedule/model
+seed: 42
+batch_size: 8
+max_epochs: 2
+patience: 1
+optimizer:
+  lr: 0.001
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+  weight_decay: 0.0
+model:
+  input_dim: 9
+  default_hidden_dim: 16
+  hidden_dim_overrides: {}
+data_loading:
+  mode: stream
+  num_workers: 0
+  stats_chunk_size: 1024
+  pin_memory: false
+tracking:
+  mode: disabled
+  project: phase3-schedule
+  logdir_name: swanlab

@@ -1,0 +1,5 @@
+outs:
+- md5: 624c878113766ab6b0ab7f15fb719a18
+  size: 2474
+  hash: md5
+  path: model_256summary.txt

@@ -20,3 +20,14 @@ model:
   hidden_dim_overrides:
     266: 140
     276: 140
+
+data_loading:
+  mode: stream
+  num_workers: 0
+  stats_chunk_size: 65536
+  pin_memory: auto
+
+tracking:
+  mode: offline
+  project: neural-curvature
+  logdir_name: swanlab

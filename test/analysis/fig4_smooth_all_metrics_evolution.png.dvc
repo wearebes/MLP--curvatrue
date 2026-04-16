@@ -1,0 +1,5 @@
+outs:
+- md5: ea98c37aa6a6e1971de8a8b5bcd10506
+  size: 1691829
+  hash: md5
+  path: fig4_smooth_all_metrics_evolution.png
