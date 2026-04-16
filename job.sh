@@ -14,7 +14,44 @@ umask "${JOB_UMASK:-002}"
 #SBATCH --error=logs/slurm/%x_%j.err
 
 SCRIPT_PATH=${BASH_SOURCE[0]:-$0}
-REPO_ROOT=$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)
+
+is_repo_root_candidate() {
+    local candidate="$1"
+    [ -n "$candidate" ] \
+        && [ -d "$candidate" ] \
+        && [ -f "$candidate/environment.yaml" ] \
+        && [ -d "$candidate/train" ] \
+        && [ -f "$candidate/job.sh" ]
+}
+
+resolve_repo_root() {
+    local script_dir=""
+    script_dir=$(cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)
+
+    if [ -n "${REPO_ROOT_OVERRIDE:-}" ] && is_repo_root_candidate "$REPO_ROOT_OVERRIDE"; then
+        cd -- "$REPO_ROOT_OVERRIDE" && pwd
+        return 0
+    fi
+    if is_repo_root_candidate "$PWD"; then
+        cd -- "$PWD" && pwd
+        return 0
+    fi
+    if [ -n "${SLURM_SUBMIT_DIR:-}" ] && is_repo_root_candidate "$SLURM_SUBMIT_DIR"; then
+        cd -- "$SLURM_SUBMIT_DIR" && pwd
+        return 0
+    fi
+    if is_repo_root_candidate "$script_dir"; then
+        cd -- "$script_dir" && pwd
+        return 0
+    fi
+
+    echo "ERROR: Could not resolve repository root." >&2
+    echo "Checked PWD='$PWD', SLURM_SUBMIT_DIR='${SLURM_SUBMIT_DIR:-}', SCRIPT_DIR='$script_dir'." >&2
+    echo "Set REPO_ROOT_OVERRIDE explicitly or submit from the repository root." >&2
+    exit 1
+}
+
+REPO_ROOT=$(resolve_repo_root)
 LOG_ROOT_DIR="$REPO_ROOT/logs"
 if [ -n "${LOG_ID:-}" ]; then
     EFFECTIVE_LOG_ID="$LOG_ID"
